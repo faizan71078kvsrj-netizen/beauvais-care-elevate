@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SeniorCareRouteImport } from './routes/senior-care'
+import { Route as AdultDayHealthCareRouteImport } from './routes/adult-day-health-care'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 
 const SeniorCareRoute = SeniorCareRouteImport.update({
   id: '/senior-care',
   path: '/senior-care',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdultDayHealthCareRoute = AdultDayHealthCareRouteImport.update({
+  id: '/adult-day-health-care',
+  path: '/adult-day-health-care',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -32,30 +38,34 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/adult-day-health-care': typeof AdultDayHealthCareRoute
   '/senior-care': typeof SeniorCareRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/adult-day-health-care': typeof AdultDayHealthCareRoute
   '/senior-care': typeof SeniorCareRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/adult-day-health-care': typeof AdultDayHealthCareRoute
   '/senior-care': typeof SeniorCareRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/senior-care'
+  fullPaths: '/' | '/about' | '/adult-day-health-care' | '/senior-care'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/senior-care'
-  id: '__root__' | '/' | '/about' | '/senior-care'
+  to: '/' | '/about' | '/adult-day-health-care' | '/senior-care'
+  id: '__root__' | '/' | '/about' | '/adult-day-health-care' | '/senior-care'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  AdultDayHealthCareRoute: typeof AdultDayHealthCareRoute
   SeniorCareRoute: typeof SeniorCareRoute
 }
 
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/senior-care'
       fullPath: '/senior-care'
       preLoaderRoute: typeof SeniorCareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/adult-day-health-care': {
+      id: '/adult-day-health-care'
+      path: '/adult-day-health-care'
+      fullPath: '/adult-day-health-care'
+      preLoaderRoute: typeof AdultDayHealthCareRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  AdultDayHealthCareRoute: AdultDayHealthCareRoute,
   SeniorCareRoute: SeniorCareRoute,
 }
 export const routeTree = rootRouteImport

@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VideosRouteImport } from './routes/videos'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as SeniorCareRouteImport } from './routes/senior-care'
 import { Route as GalleryRouteImport } from './routes/gallery'
@@ -18,6 +19,11 @@ import { Route as ActivitiesRouteImport } from './routes/activities'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 
+const VideosRoute = VideosRouteImport.update({
+  id: '/videos',
+  path: '/videos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ServicesRoute = ServicesRouteImport.update({
   id: '/services',
   path: '/services',
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/gallery': typeof GalleryRoute
   '/senior-care': typeof SeniorCareRoute
   '/services': typeof ServicesRoute
+  '/videos': typeof VideosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/gallery': typeof GalleryRoute
   '/senior-care': typeof SeniorCareRoute
   '/services': typeof ServicesRoute
+  '/videos': typeof VideosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/gallery': typeof GalleryRoute
   '/senior-care': typeof SeniorCareRoute
   '/services': typeof ServicesRoute
+  '/videos': typeof VideosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/senior-care'
     | '/services'
+    | '/videos'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/senior-care'
     | '/services'
+    | '/videos'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/senior-care'
     | '/services'
+    | '/videos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,10 +144,18 @@ export interface RootRouteChildren {
   GalleryRoute: typeof GalleryRoute
   SeniorCareRoute: typeof SeniorCareRoute
   ServicesRoute: typeof ServicesRoute
+  VideosRoute: typeof VideosRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/videos': {
+      id: '/videos'
+      path: '/videos'
+      fullPath: '/videos'
+      preLoaderRoute: typeof VideosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/services': {
       id: '/services'
       path: '/services'
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   GalleryRoute: GalleryRoute,
   SeniorCareRoute: SeniorCareRoute,
   ServicesRoute: ServicesRoute,
+  VideosRoute: VideosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

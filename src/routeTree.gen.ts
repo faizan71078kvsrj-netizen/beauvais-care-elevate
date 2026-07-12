@@ -9,12 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ServicesRouteImport } from './routes/services'
 import { Route as SeniorCareRouteImport } from './routes/senior-care'
 import { Route as AlzheimersDementiaCareRouteImport } from './routes/alzheimers-dementia-care'
 import { Route as AdultDayHealthCareRouteImport } from './routes/adult-day-health-care'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 
+const ServicesRoute = ServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SeniorCareRoute = SeniorCareRouteImport.update({
   id: '/senior-care',
   path: '/senior-care',
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/adult-day-health-care': typeof AdultDayHealthCareRoute
   '/alzheimers-dementia-care': typeof AlzheimersDementiaCareRoute
   '/senior-care': typeof SeniorCareRoute
+  '/services': typeof ServicesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/adult-day-health-care': typeof AdultDayHealthCareRoute
   '/alzheimers-dementia-care': typeof AlzheimersDementiaCareRoute
   '/senior-care': typeof SeniorCareRoute
+  '/services': typeof ServicesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,6 +70,7 @@ export interface FileRoutesById {
   '/adult-day-health-care': typeof AdultDayHealthCareRoute
   '/alzheimers-dementia-care': typeof AlzheimersDementiaCareRoute
   '/senior-care': typeof SeniorCareRoute
+  '/services': typeof ServicesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -71,6 +80,7 @@ export interface FileRouteTypes {
     | '/adult-day-health-care'
     | '/alzheimers-dementia-care'
     | '/senior-care'
+    | '/services'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -78,6 +88,7 @@ export interface FileRouteTypes {
     | '/adult-day-health-care'
     | '/alzheimers-dementia-care'
     | '/senior-care'
+    | '/services'
   id:
     | '__root__'
     | '/'
@@ -85,6 +96,7 @@ export interface FileRouteTypes {
     | '/adult-day-health-care'
     | '/alzheimers-dementia-care'
     | '/senior-care'
+    | '/services'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -93,10 +105,18 @@ export interface RootRouteChildren {
   AdultDayHealthCareRoute: typeof AdultDayHealthCareRoute
   AlzheimersDementiaCareRoute: typeof AlzheimersDementiaCareRoute
   SeniorCareRoute: typeof SeniorCareRoute
+  ServicesRoute: typeof ServicesRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/services': {
+      id: '/services'
+      path: '/services'
+      fullPath: '/services'
+      preLoaderRoute: typeof ServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/senior-care': {
       id: '/senior-care'
       path: '/senior-care'
@@ -141,6 +161,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdultDayHealthCareRoute: AdultDayHealthCareRoute,
   AlzheimersDementiaCareRoute: AlzheimersDementiaCareRoute,
   SeniorCareRoute: SeniorCareRoute,
+  ServicesRoute: ServicesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

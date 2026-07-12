@@ -13,6 +13,7 @@ import { Route as ServicesRouteImport } from './routes/services'
 import { Route as SeniorCareRouteImport } from './routes/senior-care'
 import { Route as AlzheimersDementiaCareRouteImport } from './routes/alzheimers-dementia-care'
 import { Route as AdultDayHealthCareRouteImport } from './routes/adult-day-health-care'
+import { Route as ActivitiesRouteImport } from './routes/activities'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -36,6 +37,11 @@ const AdultDayHealthCareRoute = AdultDayHealthCareRouteImport.update({
   path: '/adult-day-health-care',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ActivitiesRoute = ActivitiesRouteImport.update({
+  id: '/activities',
+  path: '/activities',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -50,6 +56,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/activities': typeof ActivitiesRoute
   '/adult-day-health-care': typeof AdultDayHealthCareRoute
   '/alzheimers-dementia-care': typeof AlzheimersDementiaCareRoute
   '/senior-care': typeof SeniorCareRoute
@@ -58,6 +65,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/activities': typeof ActivitiesRoute
   '/adult-day-health-care': typeof AdultDayHealthCareRoute
   '/alzheimers-dementia-care': typeof AlzheimersDementiaCareRoute
   '/senior-care': typeof SeniorCareRoute
@@ -67,6 +75,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/activities': typeof ActivitiesRoute
   '/adult-day-health-care': typeof AdultDayHealthCareRoute
   '/alzheimers-dementia-care': typeof AlzheimersDementiaCareRoute
   '/senior-care': typeof SeniorCareRoute
@@ -77,6 +86,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/activities'
     | '/adult-day-health-care'
     | '/alzheimers-dementia-care'
     | '/senior-care'
@@ -85,6 +95,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/activities'
     | '/adult-day-health-care'
     | '/alzheimers-dementia-care'
     | '/senior-care'
@@ -93,6 +104,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
+    | '/activities'
     | '/adult-day-health-care'
     | '/alzheimers-dementia-care'
     | '/senior-care'
@@ -102,6 +114,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  ActivitiesRoute: typeof ActivitiesRoute
   AdultDayHealthCareRoute: typeof AdultDayHealthCareRoute
   AlzheimersDementiaCareRoute: typeof AlzheimersDementiaCareRoute
   SeniorCareRoute: typeof SeniorCareRoute
@@ -138,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdultDayHealthCareRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/activities': {
+      id: '/activities'
+      path: '/activities'
+      fullPath: '/activities'
+      preLoaderRoute: typeof ActivitiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/about': {
       id: '/about'
       path: '/about'
@@ -158,6 +178,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  ActivitiesRoute: ActivitiesRoute,
   AdultDayHealthCareRoute: AdultDayHealthCareRoute,
   AlzheimersDementiaCareRoute: AlzheimersDementiaCareRoute,
   SeniorCareRoute: SeniorCareRoute,

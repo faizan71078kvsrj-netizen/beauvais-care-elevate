@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VideosRouteImport } from './routes/videos'
 import { Route as TestimonialsRouteImport } from './routes/testimonials'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as SeniorCareRouteImport } from './routes/senior-care'
 import { Route as GalleryRouteImport } from './routes/gallery'
@@ -30,6 +31,11 @@ const VideosRoute = VideosRouteImport.update({
 const TestimonialsRoute = TestimonialsRouteImport.update({
   id: '/testimonials',
   path: '/testimonials',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ServicesRoute = ServicesRouteImport.update({
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/gallery': typeof GalleryRoute
   '/senior-care': typeof SeniorCareRoute
   '/services': typeof ServicesRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/videos': typeof VideosRoute
 }
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/gallery': typeof GalleryRoute
   '/senior-care': typeof SeniorCareRoute
   '/services': typeof ServicesRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/videos': typeof VideosRoute
 }
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   '/gallery': typeof GalleryRoute
   '/senior-care': typeof SeniorCareRoute
   '/services': typeof ServicesRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/videos': typeof VideosRoute
 }
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/senior-care'
     | '/services'
+    | '/sitemap.xml'
     | '/testimonials'
     | '/videos'
   fileRoutesByTo: FileRoutesByTo
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/senior-care'
     | '/services'
+    | '/sitemap.xml'
     | '/testimonials'
     | '/videos'
   id:
@@ -167,6 +178,7 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/senior-care'
     | '/services'
+    | '/sitemap.xml'
     | '/testimonials'
     | '/videos'
   fileRoutesById: FileRoutesById
@@ -182,6 +194,7 @@ export interface RootRouteChildren {
   GalleryRoute: typeof GalleryRoute
   SeniorCareRoute: typeof SeniorCareRoute
   ServicesRoute: typeof ServicesRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TestimonialsRoute: typeof TestimonialsRoute
   VideosRoute: typeof VideosRoute
 }
@@ -200,6 +213,13 @@ declare module '@tanstack/react-router' {
       path: '/testimonials'
       fullPath: '/testimonials'
       preLoaderRoute: typeof TestimonialsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/services': {
@@ -286,6 +306,7 @@ const rootRouteChildren: RootRouteChildren = {
   GalleryRoute: GalleryRoute,
   SeniorCareRoute: SeniorCareRoute,
   ServicesRoute: ServicesRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   TestimonialsRoute: TestimonialsRoute,
   VideosRoute: VideosRoute,
 }

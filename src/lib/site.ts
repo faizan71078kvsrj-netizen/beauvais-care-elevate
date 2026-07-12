@@ -1,0 +1,52 @@
+export const BRAND = {
+  name: "Beauvais Group & Personal Care Home Inc.",
+  short: "Beauvais Group",
+  website: "BeauvaisHealthHomeCare.com",
+  address: "944 Crossing Rock Dr, Lawrenceville, GA 30045",
+  email: "BeauvaisGroup@gmail.com",
+  phone: "(954) 859-6294",
+  phoneHref: "tel:+19548596294",
+  cell: "(305) 367-1741",
+  cellHref: "tel:+13053671741",
+  fax: "(954) 859-6294",
+  hours: "Open 24/7",
+  whatsapp: "https://wa.me/13053671741",
+  mapsQuery: "944+Crossing+Rock+Dr,+Lawrenceville,+GA+30045",
+};
+
+export const NAV = [
+  { to: "/", label: "Home" },
+  { to: "/about", label: "About" },
+  { to: "/services", label: "Services" },
+  { to: "/senior-care", label: "Senior Care" },
+  { to: "/adult-day-health-care", label: "Adult Day Care" },
+  { to: "/alzheimers-dementia-care", label: "Memory Care" },
+  { to: "/activities", label: "Activities" },
+  { to: "/gallery", label: "Gallery" },
+  { to: "/videos", label: "Videos" },
+  { to: "/testimonials", label: "Reviews" },
+  { to: "/faq", label: "FAQ" },
+  { to: "/contact", label: "Contact" },
+] as const;
+
+// Curated Unsplash healthcare imagery (royalty-free)
+export const IMG = {
+  hero: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=1600&q=80&auto=format&fit=crop",
+  caregiver1: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=1200&q=80&auto=format&fit=crop",
+  caregiver2: "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=1200&q=80&auto=format&fit=crop",
+  senior1: "https://images.unsplash.com/photo-1447743672829-166d20e83db8?w=1200&q=80&auto=format&fit=crop",
+  senior2: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=1200&q=80&auto=format&fit=crop",
+  senior3: "https://images.unsplash.com/photo-1566616213894-2d4e1baee5d8?w=1200&q=80&auto=format&fit=crop",
+  nurse: "https://images.unsplash.com/photo-1584982751601-97dcc096659c?w=1200&q=80&auto=format&fit=crop",
+  doctor: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=1200&q=80&auto=format&fit=crop",
+  assistedLiving: "https://images.unsplash.com/photo-1580281657527-47f249e8f4df?w=1200&q=80&auto=format&fit=crop",
+  dayCare: "https://images.unsplash.com/photo-1581579438747-104c53d7fbc4?w=1200&q=80&auto=format&fit=crop",
+  memory: "https://images.unsplash.com/photo-1587560699334-cc4ff634909a?w=1200&q=80&auto=format&fit=crop",
+  activity: "https://images.unsplash.com/photo-1544027993-37dbfe43562a?w=1200&q=80&auto=format&fit=crop",
+  garden: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1200&q=80&auto=format&fit=crop",
+  hands: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1200&q=80&auto=format&fit=crop",
+  reading: "https://images.unsplash.com/photo-1512418490979-92798cec1380?w=1200&q=80&auto=format&fit=crop",
+  meal: "https://images.unsplash.com/photo-1547573854-74d2a71d0826?w=1200&q=80&auto=format&fit=crop",
+  music: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1200&q=80&auto=format&fit=crop",
+  therapy: "https://images.unsplash.com/photo-1666214280557-f1b5022eb634?w=1200&q=80&auto=format&fit=crop",
+};

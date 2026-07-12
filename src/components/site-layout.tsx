@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { SiteHeader } from "./site-header";
 import { SiteFooter } from "./site-footer";
+import { Toaster } from "@/components/ui/sonner";
 
 export function SiteLayout({ children }: { children: ReactNode }) {
   return (

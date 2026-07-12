@@ -15,6 +15,7 @@ import { Route as ServicesRouteImport } from './routes/services'
 import { Route as SeniorCareRouteImport } from './routes/senior-care'
 import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as FaqRouteImport } from './routes/faq'
+import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AlzheimersDementiaCareRouteImport } from './routes/alzheimers-dementia-care'
 import { Route as AdultDayHealthCareRouteImport } from './routes/adult-day-health-care'
 import { Route as ActivitiesRouteImport } from './routes/activities'
@@ -51,6 +52,11 @@ const FaqRoute = FaqRouteImport.update({
   path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AlzheimersDementiaCareRoute = AlzheimersDementiaCareRouteImport.update({
   id: '/alzheimers-dementia-care',
   path: '/alzheimers-dementia-care',
@@ -83,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/activities': typeof ActivitiesRoute
   '/adult-day-health-care': typeof AdultDayHealthCareRoute
   '/alzheimers-dementia-care': typeof AlzheimersDementiaCareRoute
+  '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
   '/gallery': typeof GalleryRoute
   '/senior-care': typeof SeniorCareRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByTo {
   '/activities': typeof ActivitiesRoute
   '/adult-day-health-care': typeof AdultDayHealthCareRoute
   '/alzheimers-dementia-care': typeof AlzheimersDementiaCareRoute
+  '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
   '/gallery': typeof GalleryRoute
   '/senior-care': typeof SeniorCareRoute
@@ -110,6 +118,7 @@ export interface FileRoutesById {
   '/activities': typeof ActivitiesRoute
   '/adult-day-health-care': typeof AdultDayHealthCareRoute
   '/alzheimers-dementia-care': typeof AlzheimersDementiaCareRoute
+  '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
   '/gallery': typeof GalleryRoute
   '/senior-care': typeof SeniorCareRoute
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/activities'
     | '/adult-day-health-care'
     | '/alzheimers-dementia-care'
+    | '/contact'
     | '/faq'
     | '/gallery'
     | '/senior-care'
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/activities'
     | '/adult-day-health-care'
     | '/alzheimers-dementia-care'
+    | '/contact'
     | '/faq'
     | '/gallery'
     | '/senior-care'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/activities'
     | '/adult-day-health-care'
     | '/alzheimers-dementia-care'
+    | '/contact'
     | '/faq'
     | '/gallery'
     | '/senior-care'
@@ -165,6 +177,7 @@ export interface RootRouteChildren {
   ActivitiesRoute: typeof ActivitiesRoute
   AdultDayHealthCareRoute: typeof AdultDayHealthCareRoute
   AlzheimersDementiaCareRoute: typeof AlzheimersDementiaCareRoute
+  ContactRoute: typeof ContactRoute
   FaqRoute: typeof FaqRoute
   GalleryRoute: typeof GalleryRoute
   SeniorCareRoute: typeof SeniorCareRoute
@@ -217,6 +230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/alzheimers-dementia-care': {
       id: '/alzheimers-dementia-care'
       path: '/alzheimers-dementia-care'
@@ -261,6 +281,7 @@ const rootRouteChildren: RootRouteChildren = {
   ActivitiesRoute: ActivitiesRoute,
   AdultDayHealthCareRoute: AdultDayHealthCareRoute,
   AlzheimersDementiaCareRoute: AlzheimersDementiaCareRoute,
+  ContactRoute: ContactRoute,
   FaqRoute: FaqRoute,
   GalleryRoute: GalleryRoute,
   SeniorCareRoute: SeniorCareRoute,

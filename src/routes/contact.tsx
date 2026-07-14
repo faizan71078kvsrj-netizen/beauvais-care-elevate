@@ -2,8 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { SiteLayout, PageHero } from "@/components/site-layout";
 import { BRAND } from "@/lib/site";
-import { MapPin, Phone, Smartphone, Printer, Mail, Clock, MessageCircle, Send, CheckCircle2 } from "lucide-react";
+import { MapPin, Phone, Smartphone, Printer, Mail, Clock, MessageCircle, Send, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { submitAppointment } from "@/lib/appointments.functions";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -19,13 +20,24 @@ export const Route = createFileRoute("/contact")({
 
 function Page() {
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "", service: "", date: "", message: "" });
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
-    toast.success("Thank you! We'll be in touch within 24 hours.");
-    setForm({ name: "", email: "", phone: "", service: "", date: "", message: "" });
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await submitAppointment({ data: form });
+      setSubmitted(true);
+      toast.success("Thank you! We'll be in touch within 24 hours.");
+      setForm({ name: "", email: "", phone: "", service: "", date: "", message: "" });
+    } catch (err) {
+      console.error(err);
+      toast.error("Something went wrong. Please call us at " + BRAND.phone);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const contactCards = [

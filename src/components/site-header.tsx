@@ -119,8 +119,15 @@ export function SiteHeader() {
       </div>
 
       {/* Drawer — used at every size below 2xl */}
-      {open && (
-        <div className="2xl:hidden border-t border-border bg-background">
+     {open && (
+  <div
+    className="fixed inset-0 z-[999] 2xl:hidden bg-black/40"
+    onClick={() => setOpen(false)}
+  >
+    <div
+  className="absolute left-0 top-0 h-full w-80 max-w-[85%] overflow-y-auto border-r ..."
+  onClick={(e) => e.stopPropagation()}
+>
           <div className="mx-auto max-w-7xl px-4 py-4 space-y-1">
             {NAV.map((n) => (
               <Link

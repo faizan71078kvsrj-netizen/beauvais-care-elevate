@@ -551,10 +551,11 @@ function HomePage() {
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl gradient-hero shadow-soft">
                       <c.icon className="h-5 w-5 text-white" />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="text-[11px] font-semibold text-primary uppercase tracking-widest">{c.label}</div>
-                      <div className="text-sm font-semibold text-foreground truncate">{c.value}</div>
+                      <div className="text-sm font-semibold text-foreground break-words">{c.value}</div>
                     </div>
+
                   </a>
                 ))}
               </div>

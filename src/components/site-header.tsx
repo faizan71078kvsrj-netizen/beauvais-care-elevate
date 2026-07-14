@@ -22,76 +22,100 @@ export function SiteHeader() {
         </div>
       </div>
 
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+      {/* Main bar: three-column grid guarantees the logo, centered nav, and CTAs never collide. */}
+      <div className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-4 sm:px-6">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-3 group min-w-0">
           <div className="relative shrink-0">
             <div className="absolute inset-0 rounded-2xl gradient-hero opacity-90 blur-md group-hover:opacity-100 transition" />
-            <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl gradient-hero shadow-soft">
-              <HeartPulse className="h-7 w-7 text-white" strokeWidth={2.2} />
+            <div className="relative flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl gradient-hero shadow-soft">
+              <HeartPulse className="h-6 w-6 sm:h-7 sm:w-7 text-white" strokeWidth={2.2} />
             </div>
           </div>
-          <div className="min-w-0">
-            <div className="font-display text-lg sm:text-xl font-bold leading-tight text-foreground truncate">
+          <div className="min-w-0 hidden sm:block">
+            <div className="font-display text-base lg:text-lg xl:text-xl font-bold leading-tight text-foreground whitespace-nowrap">
               Beauvais Group
             </div>
-            <div className="text-[10px] sm:text-xs uppercase tracking-[0.18em] text-primary-deep font-semibold truncate">
-              & Personal Care Home Inc.
+            <div className="text-[10px] xl:text-xs uppercase tracking-[0.18em] text-primary-deep font-semibold whitespace-nowrap">
+              & Personal Care Home
             </div>
           </div>
         </Link>
 
-        {/* Desktop nav - single line */}
-        <nav className="hidden xl:flex items-center gap-1 text-sm font-medium">
+        {/* Desktop nav (centered) — only shown at 2xl+ where all 12 items fit on one line */}
+        <nav className="hidden 2xl:flex items-center justify-center gap-0.5 text-sm font-medium">
           {NAV.map((n) => (
             <Link
               key={n.to}
               to={n.to}
-              className="px-3 py-2 rounded-lg text-foreground/75 hover:text-primary hover:bg-primary/5 transition-colors"
-              activeProps={{ className: "px-3 py-2 rounded-lg text-primary bg-primary/10 font-semibold" }}
+              className="px-2.5 py-2 rounded-lg text-foreground/75 hover:text-primary hover:bg-primary/5 transition-colors whitespace-nowrap"
+              activeProps={{ className: "px-2.5 py-2 rounded-lg text-primary bg-primary/10 font-semibold whitespace-nowrap" }}
               activeOptions={{ exact: n.to === "/" }}
             >
               {n.label}
             </Link>
           ))}
         </nav>
+        {/* Spacer to keep grid columns even when nav collapses */}
+        <div className="2xl:hidden" aria-hidden />
 
-        {/* CTAs */}
-        <div className="hidden md:flex items-center gap-2 shrink-0">
-          <a href={BRAND.whatsapp} target="_blank" rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-full bg-secondary/10 px-4 py-2.5 text-sm font-semibold text-secondary-foreground border border-secondary/30 hover:bg-secondary hover:text-white transition">
-            <MessageCircle className="h-4 w-4" /> WhatsApp
+        {/* Right side: CTAs + hamburger */}
+        <div className="flex items-center gap-2 justify-end shrink-0">
+          {/* WhatsApp — icon-only on md/lg, full on xl+ */}
+          <a
+            href={BRAND.whatsapp}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="WhatsApp us"
+            className="hidden md:inline-flex items-center gap-2 rounded-full bg-secondary/10 border border-secondary/30 text-secondary-foreground hover:bg-secondary hover:text-white transition
+                       h-10 w-10 xl:h-auto xl:w-auto xl:px-4 xl:py-2.5 justify-center text-sm font-semibold"
+          >
+            <MessageCircle className="h-4 w-4" />
+            <span className="hidden xl:inline">WhatsApp</span>
           </a>
-          <a href={BRAND.phoneHref}
-            className="inline-flex items-center gap-2 rounded-full border border-primary/30 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/10 transition">
-            <Phone className="h-4 w-4" /> Call
+          {/* Call — icon-only on md/lg, full on xl+ */}
+          <a
+            href={BRAND.phoneHref}
+            aria-label="Call us"
+            className="hidden md:inline-flex items-center gap-2 rounded-full border border-primary/30 text-primary hover:bg-primary/10 transition
+                       h-10 w-10 xl:h-auto xl:w-auto xl:px-4 xl:py-2.5 justify-center text-sm font-semibold"
+          >
+            <Phone className="h-4 w-4" />
+            <span className="hidden xl:inline">Call</span>
           </a>
-          <Link to="/contact"
-            className="inline-flex items-center gap-2 rounded-full gradient-hero px-5 py-2.5 text-sm font-semibold text-white shadow-soft hover:shadow-glow transition">
-            <Calendar className="h-4 w-4" /> Book Appointment
+          {/* Book Appointment — always visible from sm+, compact label on smaller screens */}
+          <Link
+            to="/contact"
+            className="hidden sm:inline-flex items-center gap-2 rounded-full gradient-hero px-4 lg:px-5 py-2.5 text-sm font-semibold text-white shadow-soft hover:shadow-glow transition whitespace-nowrap"
+          >
+            <Calendar className="h-4 w-4" />
+            <span className="hidden lg:inline">Book Appointment</span>
+            <span className="lg:hidden">Book</span>
           </Link>
-        </div>
 
-        <button
-          className="xl:hidden inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-surface text-foreground"
-          onClick={() => setOpen((v) => !v)}
-          aria-label="Toggle menu"
-        >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+          {/* Hamburger — always shown below 2xl */}
+          <button
+            className="2xl:hidden inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-surface text-foreground shrink-0"
+            onClick={() => setOpen((v) => !v)}
+            aria-label="Toggle menu"
+            aria-expanded={open}
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
-      {/* Mobile drawer */}
+      {/* Drawer — used at every size below 2xl */}
       {open && (
-        <div className="xl:hidden border-t border-border bg-background">
+        <div className="2xl:hidden border-t border-border bg-background">
           <div className="mx-auto max-w-7xl px-4 py-4 space-y-1">
             {NAV.map((n) => (
               <Link
                 key={n.to}
                 to={n.to}
                 onClick={() => setOpen(false)}
-                className="block rounded-lg px-3 py-3 text-sm font-medium text-foreground/80 hover:bg-primary/5 hover:text-primary"
-                activeProps={{ className: "block rounded-lg px-3 py-3 text-sm font-semibold text-primary bg-primary/10" }}
+                className="block rounded-lg px-3 py-3 text-sm font-medium text-foreground/80 hover:bg-primary/5 hover:text-primary whitespace-nowrap"
+                activeProps={{ className: "block rounded-lg px-3 py-3 text-sm font-semibold text-primary bg-primary/10 whitespace-nowrap" }}
                 activeOptions={{ exact: n.to === "/" }}
               >
                 {n.label}

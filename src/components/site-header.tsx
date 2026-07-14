@@ -119,42 +119,61 @@ export function SiteHeader() {
       </div>
 
       {/* Drawer — used at every size below 2xl */}
-     {open && (
+{open && (
   <div
     className="fixed inset-0 z-[999] 2xl:hidden bg-black/40"
     onClick={() => setOpen(false)}
   >
     <div
-  className="absolute left-0 top-0 h-full w-80 max-w-[85%] overflow-y-auto border-r ..."
-  onClick={(e) => e.stopPropagation()}
->
-          <div className="mx-auto max-w-7xl px-4 py-4 space-y-1">
-            {NAV.map((n) => (
-              <Link
-                key={n.to}
-                to={n.to}
-                onClick={() => setOpen(false)}
-                className="block rounded-lg px-3 py-3 text-sm font-medium text-foreground/80 hover:bg-primary/5 hover:text-primary whitespace-nowrap"
-                activeProps={{ className: "block rounded-lg px-3 py-3 text-sm font-semibold text-primary bg-primary/10 whitespace-nowrap" }}
-                activeOptions={{ exact: n.to === "/" }}
-              >
-                {n.label}
-              </Link>
-            ))}
-            <div className="grid grid-cols-1 gap-2 pt-3">
-              <a href={BRAND.whatsapp} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-full bg-secondary px-4 py-3 text-sm font-semibold text-white">
-                <MessageCircle className="h-4 w-4" /> WhatsApp Us
-              </a>
-              <a href={BRAND.phoneHref} className="inline-flex items-center justify-center gap-2 rounded-full border border-primary px-4 py-3 text-sm font-semibold text-primary">
-                <Phone className="h-4 w-4" /> Call {BRAND.phone}
-              </a>
-              <Link to="/contact" onClick={() => setOpen(false)} className="inline-flex items-center justify-center gap-2 rounded-full gradient-hero px-4 py-3 text-sm font-semibold text-white">
-                <Calendar className="h-4 w-4" /> Book Appointment
-              </Link>
-            </div>
-          </div>
+      className="absolute left-0 top-0 h-full w-80 max-w-[85%] overflow-y-auto border-r border-border bg-background"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="mx-auto max-w-7xl px-4 py-4 space-y-1">
+        {NAV.map((n) => (
+          <Link
+            key={n.to}
+            to={n.to}
+            onClick={() => setOpen(false)}
+            className="block rounded-lg px-3 py-3 text-sm font-medium text-foreground/80 hover:bg-primary/5 hover:text-primary whitespace-nowrap"
+            activeProps={{
+              className:
+                "block rounded-lg px-3 py-3 text-sm font-semibold text-primary bg-primary/10 whitespace-nowrap",
+            }}
+            activeOptions={{ exact: n.to === "/" }}
+          >
+            {n.label}
+          </Link>
+        ))}
+
+        <div className="grid grid-cols-1 gap-2 pt-3">
+          <a
+            href={BRAND.whatsapp}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-secondary px-4 py-3 text-sm font-semibold text-white"
+          >
+            <MessageCircle className="h-4 w-4" />
+            WhatsApp Us
+          </a>
+
+          <a
+            href={BRAND.phoneHref}
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-primary px-4 py-3 text-sm font-semibold text-primary"
+          >
+            <Phone className="h-4 w-4" />
+            Call {BRAND.phone}
+          </a>
+
+          <Link
+            to="/contact"
+            onClick={() => setOpen(false)}
+            className="inline-flex items-center justify-center gap-2 rounded-full gradient-hero px-4 py-3 text-sm font-semibold text-white"
+          >
+            <Calendar className="h-4 w-4" />
+            Book Appointment
+          </Link>
         </div>
-      )}
-    </header>
-  );
-}
+      </div>
+    </div>
+  </div>
+)}

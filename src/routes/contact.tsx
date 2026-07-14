@@ -142,8 +142,8 @@ function Page() {
                   className="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
               </div>
-              <button type="submit" className="w-full inline-flex items-center justify-center gap-2 rounded-full gradient-hero px-6 py-4 text-sm font-bold text-white shadow-soft hover:shadow-glow transition">
-                <Send className="h-4 w-4" /> Send Appointment Request
+              <button type="submit" disabled={submitting} className="w-full inline-flex items-center justify-center gap-2 rounded-full gradient-hero px-6 py-4 text-sm font-bold text-white shadow-soft hover:shadow-glow transition disabled:opacity-70 disabled:cursor-not-allowed">
+                {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</> : <><Send className="h-4 w-4" /> Send Appointment Request</>}
               </button>
               <p className="text-xs text-muted-foreground text-center">We respond within 24 hours. For urgent needs, please call {BRAND.phone}.</p>
             </form>

@@ -449,21 +449,24 @@ function HomePage() {
                 <MapPin className="h-4 w-4" /> Service Areas
               </div>
               <h2 className="mt-3 font-display text-3xl md:text-5xl font-bold text-foreground text-balance">
-                Proudly serving families across Greater Atlanta.
+                Serving families across Gwinnett County.
               </h2>
               <p className="mt-5 text-muted-foreground leading-relaxed">
-                Based in Lawrenceville, we welcome residents from across Gwinnett County and the surrounding metro Atlanta area.
+                Based in Lawrenceville, we welcome residents and families from the neighboring communities right around our home.
               </p>
               <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {[
-                  "Lawrenceville", "Duluth", "Suwanee", "Norcross", "Snellville", "Buford",
-                  "Sugar Hill", "Dacula", "Grayson", "Lilburn", "Tucker", "Stone Mountain",
+                  "Lawrenceville", "Dacula", "Grayson",
+                  "Snellville", "Lilburn", "Duluth",
+                  "Suwanee", "Sugar Hill", "Buford",
+                  "Loganville", "Auburn", "Bethlehem",
                 ].map((city) => (
-                  <div key={city} className="flex items-center gap-2 rounded-xl bg-white border border-border px-3 py-2.5 text-sm font-medium text-foreground shadow-card">
-                    <MapPin className="h-4 w-4 text-primary shrink-0" /> {city}
+                  <div key={city} className="flex items-center gap-2 rounded-xl bg-white border border-border px-3 py-2.5 text-sm font-medium text-foreground shadow-card min-w-0">
+                    <MapPin className="h-4 w-4 text-primary shrink-0" /> <span className="truncate">{city}</span>
                   </div>
                 ))}
               </div>
+
               <p className="mt-6 text-sm text-muted-foreground">
                 Not sure if we cover your neighborhood? <Link to="/contact" className="text-primary font-semibold hover:underline">Give us a call</Link> — we often can.
               </p>

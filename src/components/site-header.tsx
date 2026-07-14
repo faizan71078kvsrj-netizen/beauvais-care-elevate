@@ -16,10 +16,7 @@ export function SiteHeader() {
       document.body.style.overflow = original || "";
     };
   }, [open]);
-
-
-
-  return (
+return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl">
       {/* Top bar */}
       <div className="hidden gradient-teal-deep text-white lg:block">
@@ -174,6 +171,6 @@ export function SiteHeader() {
           </Link>
         </div>
       </div>
-    </div>
+    </div>z
   </div>
 )}

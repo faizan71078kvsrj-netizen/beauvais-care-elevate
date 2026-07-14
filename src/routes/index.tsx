@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   HeartPulse, Shield, Stethoscope, Users, Clock, Award, ArrowRight,
   Sparkles, Home, Brain, Activity, Star, Quote, Phone, Calendar, MessageCircle, CheckCircle2,
+  ClipboardList, UserCheck, HeartHandshake, PhoneCall, MapPin, CreditCard, Mail, Search,
 } from "lucide-react";
 import { SiteLayout } from "@/components/site-layout";
 import { BRAND, IMG } from "@/lib/site";

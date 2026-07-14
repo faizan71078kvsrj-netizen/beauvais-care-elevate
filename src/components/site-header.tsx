@@ -1,10 +1,23 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, X, Phone, Calendar, MessageCircle, HeartPulse } from "lucide-react";
 import { BRAND, NAV } from "@/lib/site";
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+
+  // Lock body scroll while the mobile menu is open
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const original = document.body.style.overflow;
+    if (open) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = original || "";
+    return () => {
+      document.body.style.overflow = original || "";
+    };
+  }, [open]);
+
+
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl">

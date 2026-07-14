@@ -74,7 +74,7 @@ function Page() {
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-semibold text-primary uppercase tracking-widest">{c.label}</div>
-                <div className="mt-1 font-semibold text-foreground truncate">{c.value}</div>
+                <div className="mt-1 font-semibold text-foreground break-words">{c.value}</div>
               </div>
             </a>
           ))}

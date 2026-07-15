@@ -1,22 +1,26 @@
 import { Link } from "@tanstack/react-router";
-import { HeartPulse, MapPin, Phone, Mail, Clock, Facebook, Instagram, Linkedin, Twitter, ArrowRight } from "lucide-react";
+import { MapPin, Phone, Mail, Clock, Facebook, Instagram, Linkedin, Twitter, ArrowRight } from "lucide-react";
 import { BRAND } from "@/lib/site";
+import logoAsset from "@/assets/beauvais-logo.png.asset.json";
 
 export function SiteFooter() {
   return (
     <footer className="relative mt-24 overflow-hidden gradient-teal-deep text-white">
       <div className="absolute inset-0 opacity-20 pointer-events-none"
         style={{ backgroundImage: "radial-gradient(circle at 20% 10%, oklch(0.77 0.16 155 / 0.5), transparent 50%), radial-gradient(circle at 80% 80%, oklch(0.78 0.11 220 / 0.4), transparent 50%)" }} />
-      <div className="relative mx-auto max-w-7xl px-6 py-16">
+      <div className="relative mx-auto max-w-7xl px-6 pt-14 pb-8">
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           {/* About */}
           <div>
             <div className="flex items-center gap-3 mb-5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur border border-white/20">
-                <HeartPulse className="h-6 w-6 text-secondary-glow" />
-              </div>
+              <img
+                src={logoAsset.url}
+                alt="Beauvais Group logo"
+                className="h-14 w-auto shrink-0 select-none"
+                draggable={false}
+              />
               <div>
-                <div className="font-display text-lg font-bold">Beauvais Group</div>
+                <div className="font-display text-lg font-bold leading-tight">Beauvais Group</div>
                 <div className="text-[10px] tracking-widest uppercase text-white/70">Personal Care Home</div>
               </div>
             </div>
@@ -100,9 +104,9 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-white/15 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/60">
-          <p>© {new Date().getFullYear()} Beauvais Group & Personal Care Home Inc. All rights reserved.</p>
+        <div className="mt-10 pt-5 border-t border-white/15 flex flex-col items-center gap-1.5 text-xs text-white/60 text-center">
           <p>Licensed Personal Care Home · Lawrenceville, GA</p>
+          <p>© {new Date().getFullYear()} Beauvais Group & Personal Care Home Inc. All rights reserved.</p>
         </div>
       </div>
     </footer>

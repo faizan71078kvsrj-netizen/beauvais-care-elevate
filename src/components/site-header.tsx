@@ -144,7 +144,7 @@ export function SiteHeader() {
           <img
             src={logoAsset.url}
             alt="Beauvais Group & Personal Care Home Inc. logo"
-            className="h-14 sm:h-16 md:h-20 w-auto shrink-0 select-none"
+            className="h-16 sm:h-20 md:h-24 w-auto shrink-0 select-none"
             draggable={false}
           />
         </Link>

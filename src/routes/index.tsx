@@ -281,24 +281,7 @@ function HomePage() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
             {[
-  IMG.gallery1,
-  IMG.gallery2,
-  IMG.gallery3,
-  IMG.gallery4,
-  IMG.gallery5,
-  IMG.gallery6,
-  IMG.gallery7,
-  IMG.gallery8,
-  IMG.gallery9,
-  IMG.gallery10,
-
-  IMG.senior3,
-  IMG.activity,
-  IMG.meal,
-  IMG.music,
-  IMG.reading,
-  IMG.garden,
-].map((src, i) => (
+  IMG.gallery1,IMG.gallery2,IMG.gallery3,IMG.gallery4,IMG.gallery5,IMG.gallery6,IMG.gallery7,IMG.gallery8,IMG.gallery9,IMG.gallery10,IMG.senior3,IMG.activity,IMG.meal,IMG.music,IMG.reading,IMG.garden].map((src, i) => (
               <div key={i} className={`overflow-hidden rounded-2xl shadow-card ${i === 0 ? "row-span-2 md:col-span-1" : ""}`}>
                 <img src={src} alt="" className={`w-full object-cover hover:scale-105 transition duration-500 ${i === 0 ? "h-full min-h-[280px]" : "h-40 md:h-48"}`} />
               </div>

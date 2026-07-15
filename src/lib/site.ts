@@ -40,7 +40,7 @@ export const IMG = {
   nurse: "https://images.unsplash.com/photo-1584982751601-97dcc096659c?w=1200&q=80&auto=format&fit=crop",
   doctor: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=1200&q=80&auto=format&fit=crop",
   assistedLiving: "https://images.unsplash.com/photo-1580281657527-47f249e8f4df?w=1200&q=80&auto=format&fit=crop",
-  dayCare: "https://images.unsplash.com/photo-1581579438747-104c53d7fbc4?w=1200&q=80&auto=format&fit=crop",
+  dayCare: "/adult-day-care.png",
   memory: "https://images.unsplash.com/photo-1587560699334-cc4ff634909a?w=1200&q=80&auto=format&fit=crop",
   activity: "https://images.unsplash.com/photo-1544027993-37dbfe43562a?w=1200&q=80&auto=format&fit=crop",
   garden: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1200&q=80&auto=format&fit=crop",

@@ -142,7 +142,7 @@ export function SiteHeader() {
       <div className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3 sm:px-6">
         <Link to="/" className="flex items-center gap-3 group min-w-0">
           <img
-            src={logoAsset.url}
+            src="/logo.png"
             alt="Beauvais Group & Personal Care Home Inc. logo"
             className="h-16 sm:h-20 md:h-24 w-auto shrink-0 select-none"
             draggable={false}

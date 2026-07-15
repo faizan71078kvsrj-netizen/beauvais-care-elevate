@@ -16,7 +16,7 @@ export function SiteFooter() {
               <img
                 src="/logo.png"
                 alt="Beauvais Group logo"
-               className="h-40 sm:h-44 md:h-48 w-auto shrink-0"
+               className="h-20 sm:h-24 md:h-28 lg:h-32 w-auto shrink-0 select-none"
                 draggable={false}
               />
               <div>

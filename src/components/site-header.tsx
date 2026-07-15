@@ -140,14 +140,24 @@ export function SiteHeader() {
 
       {/* Main bar */}
       <div className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3 sm:px-6">
-        <Link to="/" className="flex items-center gap-3 group min-w-0">
-          <img
-            src="/logo.png"
-            alt="Beauvais Group & Personal Care Home Inc. logo"
-            className="h-20 sm:h-24 md:h-28 lg:h-32 w-auto shrink-0 select-none"
-            draggable={false}
-          />
-        </Link>
+        <Link to="/" className="flex items-center gap-3">
+  <img
+    src="/logo.png"
+    alt="Beauvais Group & Personal Care Home Inc."
+    className="h-20 sm:h-24 md:h-28 lg:h-32 w-auto shrink-0"
+    draggable={false}
+  />
+
+  <div className="flex flex-col leading-tight">
+    <h1 className="text-base sm:text-xl md:text-2xl lg:text-3xl font-bold text-foreground">
+      Beauvais Group
+    </h1>
+
+    <p className="text-[9px] sm:text-xs md:text-sm uppercase tracking-[0.18em] text-primary font-semibold">
+      Personal Care Home
+    </p>
+  </div>
+</Link>
 
         <nav className="hidden 2xl:flex items-center justify-center gap-0.5 text-sm font-medium">
           {NAV.map((n) => (

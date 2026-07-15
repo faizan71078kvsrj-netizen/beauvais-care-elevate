@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Menu, X, Phone, Calendar, MessageCircle } from "lucide-react";
 import { BRAND, NAV } from "@/lib/site";
-import logoAsset from "@/assets/beauvais-logo.png.asset.json";
+import logo from "/logo.png";
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);

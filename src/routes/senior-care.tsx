@@ -109,7 +109,11 @@ function SeniorCarePage() {
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {[Home, HeartPulse, Utensils, Bath].map((Icon, i) => (
             <div key={i} className="rounded-3xl overflow-hidden border border-border bg-white shadow-card">
-              <img src={[IMG.senior3, IMG.hands, IMG.meal, IMG.garden][i]} alt="" className="h-48 w-full object-cover" />
+              <img
+  src={[IMG.gallery6, IMG.gallery5, IMG.meal, IMG.gallery7][i]}
+  alt=""
+  className="h-48 w-full object-cover"
+/>
               <div className="p-5">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">

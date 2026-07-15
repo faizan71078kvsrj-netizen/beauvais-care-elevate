@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { HeartPulse, MapPin, Phone, Mail, Clock, Facebook, Instagram, Linkedin, Twitter, ArrowRight } from "lucide-react";
+import { MapPin, Phone, Mail, Clock, Facebook, Instagram, Linkedin, Twitter, ArrowRight } from "lucide-react";
 import { BRAND } from "@/lib/site";
+import logoAsset from "@/assets/beauvais-logo.png.asset.json";
 
 export function SiteFooter() {
   return (

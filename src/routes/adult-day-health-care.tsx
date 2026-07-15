@@ -26,7 +26,7 @@ function Page() {
       />
 
       {/* Feature strip - unique alternating layout */}
-      <section className="mx-auto max-w-7xl px-6 py-20 space-y-16">
+      <section className="mx-auto max-w-7xl px-6 py-14 space-y-16">
         {[
           { icon: Sun, title: "Structured, joyful days", desc: "Our carefully planned schedule keeps participants engaged, active, and connected. Every day brings meaningful activity, warm meals, and moments of genuine joy.", img: IMG.dayCare, reverse: false },
           { icon: Activity, title: "Wellness and light therapy", desc: "On-site health monitoring, physical therapy, gentle exercise, and medication support — supervised by trained staff throughout the day.", img: IMG.therapy, reverse: true },
@@ -49,7 +49,7 @@ function Page() {
       </section>
 
       {/* Activities grid - masonry-like */}
-      <section className="bg-surface py-20">
+      <section className="bg-surface py-14">
         <div className="mx-auto max-w-7xl px-6">
           <div className="text-center max-w-2xl mx-auto mb-12">
             <div className="text-xs font-semibold text-secondary uppercase tracking-widest">What Happens Each Day</div>
@@ -83,7 +83,7 @@ function Page() {
       </section>
 
       {/* Family support */}
-      <section className="mx-auto max-w-7xl px-6 py-20">
+      <section className="mx-auto max-w-7xl px-6 py-14">
         <div className="rounded-[2rem] gradient-hero p-10 md:p-14 text-white grid gap-8 lg:grid-cols-[1.3fr_1fr] lg:items-center shadow-elegant">
           <div>
             <h3 className="font-display text-3xl md:text-4xl font-bold text-balance">Peace of mind for caregivers, too.</h3>

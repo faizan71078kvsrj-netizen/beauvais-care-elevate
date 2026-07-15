@@ -36,7 +36,7 @@ function Page() {
         subtitle="Every story is a reminder of why we do this work."
       />
 
-      <section className="mx-auto max-w-7xl px-6 py-16">
+      <section className="mx-auto max-w-7xl px-6 py-12">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {stories.map((t) => (
             <figure key={t.a} className="relative flex flex-col rounded-3xl bg-gradient-to-br from-white to-surface p-8 shadow-card border border-border">

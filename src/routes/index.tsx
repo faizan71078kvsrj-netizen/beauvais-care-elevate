@@ -18,7 +18,7 @@ function HomePage() {
         <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-primary/20 blur-3xl -z-10" />
         <div className="absolute -bottom-40 -left-40 h-[500px] w-[500px] rounded-full bg-secondary/20 blur-3xl -z-10" />
 
-        <div className="mx-auto grid max-w-7xl gap-12 px-6 py-16 md:py-24 lg:grid-cols-[1.05fr_1fr] lg:items-center">
+        <div className="mx-auto grid max-w-7xl gap-12 px-6 py-12 md:py-20 lg:grid-cols-[1.05fr_1fr] lg:items-center">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-white/70 border border-primary/20 px-4 py-1.5 text-xs font-semibold text-primary uppercase tracking-widest shadow-soft backdrop-blur">
               <Sparkles className="h-3.5 w-3.5" /> Licensed Personal Care Home · Lawrenceville, GA
@@ -86,7 +86,7 @@ function HomePage() {
       </section>
 
       {/* ABOUT PREVIEW */}
-      <section className="mx-auto max-w-7xl px-6 py-20 md:py-28">
+      <section className="mx-auto max-w-7xl px-6 py-12 md:py-20">
         <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
           <div className="relative order-2 lg:order-1">
             <div className="grid grid-cols-2 gap-4">
@@ -124,7 +124,7 @@ function HomePage() {
       </section>
 
       {/* WHY CHOOSE US PREVIEW */}
-      <section className="relative bg-surface py-20 md:py-28 overflow-hidden">
+      <section className="relative bg-surface py-12 md:py-20 overflow-hidden">
         <div className="mx-auto max-w-7xl px-6">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-widest">
@@ -159,7 +159,7 @@ function HomePage() {
       </section>
 
       {/* FEATURED SERVICES */}
-      <section className="mx-auto max-w-7xl px-6 py-20 md:py-28">
+      <section className="mx-auto max-w-7xl px-6 py-12 md:py-20">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-14">
           <div>
             <div className="inline-flex items-center gap-2 text-xs font-semibold text-secondary uppercase tracking-widest">
@@ -201,7 +201,7 @@ function HomePage() {
       </section>
 
       {/* STATISTICS */}
-      <section className="relative overflow-hidden gradient-teal-deep text-white py-20 md:py-24">
+      <section className="relative overflow-hidden gradient-teal-deep text-white py-12 md:py-20">
         <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "radial-gradient(circle at 30% 20%, oklch(0.77 0.16 155 / 0.5), transparent 45%), radial-gradient(circle at 70% 80%, oklch(0.78 0.11 220 / 0.5), transparent 50%)" }} />
         <div className="relative mx-auto max-w-7xl px-6">
           <div className="text-center max-w-2xl mx-auto">
@@ -230,7 +230,7 @@ function HomePage() {
       </section>
 
       {/* TESTIMONIALS PREVIEW */}
-      <section className="mx-auto max-w-7xl px-6 py-20 md:py-28">
+      <section className="mx-auto max-w-7xl px-6 py-12 md:py-20">
         <div className="text-center max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-widest">
             <Quote className="h-4 w-4" /> Testimonials
@@ -266,7 +266,7 @@ function HomePage() {
       </section>
 
       {/* GALLERY PREVIEW */}
-      <section className="bg-surface py-20 md:py-28">
+      <section className="bg-surface py-12 md:py-20">
         <div className="mx-auto max-w-7xl px-6">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
             <div>
@@ -290,7 +290,7 @@ function HomePage() {
       </section>
 
       {/* OUR CARE PROCESS */}
-      <section className="mx-auto max-w-7xl px-6 py-20 md:py-28">
+      <section className="mx-auto max-w-7xl px-6 py-12 md:py-20">
         <div className="text-center max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-widest">
             <ClipboardList className="h-4 w-4" /> Our Care Process
@@ -323,7 +323,7 @@ function HomePage() {
       </section>
 
       {/* CARE PLANS */}
-      <section className="bg-surface py-20 md:py-28">
+      <section className="bg-surface py-12 md:py-20">
         <div className="mx-auto max-w-7xl px-6">
           <div className="text-center max-w-2xl mx-auto">
             <div className="inline-flex items-center gap-2 text-xs font-semibold text-secondary uppercase tracking-widest">
@@ -396,7 +396,7 @@ function HomePage() {
       </section>
 
       {/* MEET OUR CAREGIVERS */}
-      <section className="mx-auto max-w-7xl px-6 py-20 md:py-28">
+      <section className="mx-auto max-w-7xl px-6 py-12 md:py-20">
         <div className="grid gap-10 lg:grid-cols-[1fr_1.2fr] lg:items-center">
           <div>
             <div className="inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-widest">
@@ -441,7 +441,7 @@ function HomePage() {
       </section>
 
       {/* SERVICE AREAS */}
-      <section className="relative overflow-hidden bg-surface py-20 md:py-28">
+      <section className="relative overflow-hidden bg-surface py-12 md:py-20">
         <div className="mx-auto max-w-7xl px-6">
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
             <div>
@@ -485,7 +485,7 @@ function HomePage() {
       </section>
 
       {/* INSURANCE & PAYMENT */}
-      <section className="mx-auto max-w-7xl px-6 py-20 md:py-28">
+      <section className="mx-auto max-w-7xl px-6 py-12 md:py-20">
         <div className="text-center max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-widest">
             <CreditCard className="h-4 w-4" /> Insurance & Payment
@@ -524,7 +524,7 @@ function HomePage() {
       </section>
 
       {/* CONTACT PREVIEW */}
-      <section className="bg-surface py-20 md:py-28">
+      <section className="bg-surface py-12 md:py-20">
         <div className="mx-auto max-w-7xl px-6">
           <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
             <div>
@@ -585,7 +585,7 @@ function HomePage() {
       </section>
 
       {/* CTA */}
-      <section className="mx-auto max-w-7xl px-6 py-20">
+      <section className="mx-auto max-w-7xl px-6 py-14">
         <div className="relative overflow-hidden rounded-[2.5rem] gradient-hero p-10 md:p-16 shadow-elegant">
           <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 20% 30%, white, transparent 40%), radial-gradient(circle at 80% 70%, white, transparent 40%)" }} />
           <div className="relative grid gap-8 lg:grid-cols-[1.4fr_1fr] lg:items-center">

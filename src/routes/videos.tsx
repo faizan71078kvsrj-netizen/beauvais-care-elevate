@@ -34,7 +34,7 @@ function Page() {
         subtitle="Video tours, resident stories, and glimpses of daily life at Beauvais Group."
       />
 
-      <section className="mx-auto max-w-7xl px-6 py-16">
+      <section className="mx-auto max-w-7xl px-6 py-12">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {videos.map((v) => (
             <div key={v.title} className="group rounded-3xl overflow-hidden bg-white border border-border shadow-card hover:shadow-elegant transition">

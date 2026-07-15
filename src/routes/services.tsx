@@ -43,7 +43,7 @@ function Page() {
         subtitle="Every service is designed around the whole person — physical, emotional, and social wellbeing."
       />
 
-      <section className="mx-auto max-w-7xl px-6 py-16">
+      <section className="mx-auto max-w-7xl px-6 py-12">
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {services.map((s) => (
             <div key={s.title} className="group relative rounded-3xl border border-border bg-gradient-to-br from-white to-surface p-7 shadow-card hover:shadow-elegant hover:-translate-y-1 transition duration-300">

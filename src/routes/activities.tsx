@@ -40,7 +40,7 @@ function Page() {
       />
 
       {/* Grid with gradient cards */}
-      <section className="mx-auto max-w-7xl px-6 py-20">
+      <section className="mx-auto max-w-7xl px-6 py-14">
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {activities.map((a) => (
             <div key={a.t} className="group relative overflow-hidden rounded-3xl bg-white border border-border p-6 hover:shadow-elegant hover:-translate-y-1 transition duration-300">
@@ -55,7 +55,7 @@ function Page() {
       </section>
 
       {/* Weekly schedule preview - unique table style */}
-      <section className="bg-surface py-20">
+      <section className="bg-surface py-14">
         <div className="mx-auto max-w-7xl px-6">
           <div className="text-center max-w-2xl mx-auto mb-10">
             <div className="text-xs font-semibold text-primary uppercase tracking-widest">Sample Week</div>
@@ -80,7 +80,7 @@ function Page() {
       </section>
 
       {/* CTA */}
-      <section className="mx-auto max-w-7xl px-6 py-20">
+      <section className="mx-auto max-w-7xl px-6 py-14">
         <div className="rounded-[2rem] gradient-hero p-10 md:p-14 text-white text-center shadow-elegant">
           <h3 className="font-display text-3xl md:text-4xl font-bold text-balance max-w-2xl mx-auto">Want to see activities in action?</h3>
           <p className="mt-3 text-white/90 max-w-lg mx-auto">Visit our gallery or book a tour to experience it yourself.</p>

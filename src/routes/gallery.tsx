@@ -17,6 +17,16 @@ export const Route = createFileRoute("/gallery")({
 
 function Page() {
   const photos = [
+    { src: IMG.gallery1, tag: "Gallery" },
+{ src: IMG.gallery2, tag: "Gallery" },
+{ src: IMG.gallery3, tag: "Gallery" },
+{ src: IMG.gallery4, tag: "Gallery" },
+{ src: IMG.gallery5, tag: "Gallery" },
+{ src: IMG.gallery6, tag: "Gallery" },
+{ src: IMG.gallery7, tag: "Gallery" },
+{ src: IMG.gallery8, tag: "Gallery" },
+{ src: IMG.gallery9, tag: "Gallery" },
+{ src: IMG.gallery10, tag: "Gallery" },
     { src: IMG.caregiver1, tag: "Caregivers" },
     { src: IMG.senior1, tag: "Residents" },
     { src: IMG.senior2, tag: "Daily Life" },

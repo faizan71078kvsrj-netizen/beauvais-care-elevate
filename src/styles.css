@@ -63,7 +63,7 @@
   /* #7BDCB5 */
   --secondary: oklch(0.83 0.11 162);
   --secondary-foreground: oklch(0.22 0.04 160);
-  --secondary-glow: oklch(0.86 0.12 155);
+  --secondary-glow: oklch(0.90 0.09 162);
 
   --muted: oklch(0.968 0.006 240);
   --muted-foreground: oklch(0.5 0.03 250);

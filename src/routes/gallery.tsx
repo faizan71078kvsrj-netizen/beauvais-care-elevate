@@ -45,7 +45,7 @@ function Page() {
         subtitle="Real moments, real smiles, real care."
       />
 
-      <section className="mx-auto max-w-7xl px-4 sm:px-6 py-16">
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 py-12">
         <div className="columns-2 md:columns-3 lg:columns-4 gap-3 md:gap-4 [column-fill:_balance]">
           {photos.map((p, i) => (
             <div key={i} className="mb-3 md:mb-4 break-inside-avoid group relative overflow-hidden rounded-2xl shadow-card">

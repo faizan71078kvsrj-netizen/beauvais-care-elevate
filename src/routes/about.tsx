@@ -40,7 +40,7 @@ function AboutPage() {
       </section>
 
       {/* Mission / Vision / Values */}
-      <section className="bg-surface py-20">
+      <section className="bg-surface py-14">
         <div className="mx-auto max-w-7xl px-6 grid gap-6 md:grid-cols-3">
           {[
             { icon: Target, title: "Our Mission", body: "To provide exceptional, personalized care that honors the dignity, independence, and joy of every senior we serve." },
@@ -59,7 +59,7 @@ function AboutPage() {
       </section>
 
       {/* Why Choose Us - Full */}
-      <section className="mx-auto max-w-7xl px-6 py-20 md:py-28">
+      <section className="mx-auto max-w-7xl px-6 py-12 md:py-20">
         <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
           <div className="relative">
             <img src={IMG.nurse} alt="Nurse caring for senior" className="rounded-3xl shadow-elegant h-[500px] w-full object-cover" />

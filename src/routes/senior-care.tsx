@@ -52,7 +52,7 @@ function SeniorCarePage() {
       </section>
 
       {/* Services list - unique layout: cards with left icon strip */}
-      <section className="mx-auto max-w-7xl px-6 py-20">
+      <section className="mx-auto max-w-7xl px-6 py-14">
         <div className="max-w-2xl mb-14">
           <div className="text-xs font-semibold text-primary uppercase tracking-widest">What's Included</div>
           <h2 className="mt-3 font-display text-3xl md:text-5xl font-bold text-foreground text-balance">
@@ -75,7 +75,7 @@ function SeniorCarePage() {
       </section>
 
       {/* A day here */}
-      <section className="bg-surface py-20">
+      <section className="bg-surface py-14">
         <div className="mx-auto max-w-7xl px-6 grid gap-12 lg:grid-cols-2 lg:items-center">
           <img src={IMG.assistedLiving} alt="Assisted living" className="rounded-3xl shadow-elegant h-[480px] w-full object-cover" />
           <div>
@@ -101,7 +101,7 @@ function SeniorCarePage() {
       </section>
 
       {/* Home features */}
-      <section className="mx-auto max-w-7xl px-6 py-20">
+      <section className="mx-auto max-w-7xl px-6 py-14">
         <div className="text-center max-w-2xl mx-auto mb-12">
           <div className="text-xs font-semibold text-primary uppercase tracking-widest">The Residence</div>
           <h2 className="mt-3 font-display text-3xl md:text-5xl font-bold text-foreground text-balance">A safe, beautiful home to grow older in.</h2>

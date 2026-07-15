@@ -53,7 +53,7 @@ function Page() {
         subtitle="Choosing a care home is a big decision. Here's what families most often ask us."
       />
 
-      <section className="mx-auto max-w-4xl px-6 py-16 space-y-12">
+      <section className="mx-auto max-w-4xl px-6 py-12 space-y-12">
         {groups.map((g) => (
           <div key={g.title}>
             <div className="flex items-center gap-3 mb-6">

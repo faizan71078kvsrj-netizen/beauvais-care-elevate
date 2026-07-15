@@ -59,7 +59,7 @@ function Page() {
       />
 
       {/* Contact cards */}
-      <section className="mx-auto max-w-7xl px-6 py-16">
+      <section className="mx-auto max-w-7xl px-6 py-12">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {contactCards.map((c) => (
             <a
@@ -95,7 +95,7 @@ function Page() {
       </section>
 
       {/* Form + Map */}
-      <section className="bg-surface py-16">
+      <section className="bg-surface py-12">
         <div className="mx-auto max-w-7xl px-6 grid gap-8 lg:grid-cols-2">
           {/* Form */}
           <div className="rounded-3xl bg-white p-8 md:p-10 shadow-elegant border border-border">

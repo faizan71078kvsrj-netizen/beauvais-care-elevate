@@ -27,7 +27,7 @@ function Page() {
       />
 
       {/* Approach - 2 col */}
-      <section className="mx-auto max-w-7xl px-6 py-20 grid gap-12 lg:grid-cols-[1fr_1.1fr] lg:items-center">
+      <section className="mx-auto max-w-7xl px-6 py-14 grid gap-12 lg:grid-cols-[1fr_1.1fr] lg:items-center">
         <div>
           <div className="text-xs font-semibold text-primary uppercase tracking-widest">Our Approach</div>
           <h2 className="mt-3 font-display text-3xl md:text-5xl font-bold text-foreground text-balance">
@@ -49,7 +49,7 @@ function Page() {
       </section>
 
       {/* Program pillars - unique dark section with cards */}
-      <section className="relative overflow-hidden gradient-teal-deep text-white py-20">
+      <section className="relative overflow-hidden gradient-teal-deep text-white py-14">
         <div className="absolute inset-0 opacity-25" style={{ backgroundImage: "radial-gradient(circle at 30% 20%, oklch(0.77 0.16 155 / 0.4), transparent 45%)" }} />
         <div className="relative mx-auto max-w-7xl px-6">
           <div className="max-w-2xl">
@@ -78,7 +78,7 @@ function Page() {
       </section>
 
       {/* Family support CTA */}
-      <section className="mx-auto max-w-7xl px-6 py-20">
+      <section className="mx-auto max-w-7xl px-6 py-14">
         <div className="rounded-[2rem] bg-white border-2 border-secondary/20 p-10 md:p-14 shadow-elegant grid gap-8 lg:grid-cols-2 lg:items-center">
           <div>
             <div className="text-xs font-semibold text-secondary uppercase tracking-widest">You're Not Alone</div>

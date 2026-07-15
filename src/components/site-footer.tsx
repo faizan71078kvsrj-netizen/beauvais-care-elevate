@@ -14,7 +14,7 @@ export function SiteFooter() {
           <div>
             <div className="flex items-center gap-3 mb-5">
               <img
-                src={logoAsset.url}
+                src="/logo.png"
                 alt="Beauvais Group logo"
                 className="h-14 w-auto shrink-0 select-none"
                 draggable={false}

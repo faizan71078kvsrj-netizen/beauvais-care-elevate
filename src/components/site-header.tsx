@@ -56,7 +56,7 @@ export function SiteHeader() {
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/70 bg-background/95 backdrop-blur px-5 py-4">
           <div className="flex items-center gap-2">
             <img
-              src={logoAsset.url}
+              src="/logo.png"
               alt="Beauvais Group logo"
               className="h-10 w-auto"
               draggable={false}

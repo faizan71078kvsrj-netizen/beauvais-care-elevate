@@ -104,9 +104,9 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-white/15 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/60">
-          <p>© {new Date().getFullYear()} Beauvais Group & Personal Care Home Inc. All rights reserved.</p>
+        <div className="mt-10 pt-5 border-t border-white/15 flex flex-col items-center gap-1.5 text-xs text-white/60 text-center">
           <p>Licensed Personal Care Home · Lawrenceville, GA</p>
+          <p>© {new Date().getFullYear()} Beauvais Group & Personal Care Home Inc. All rights reserved.</p>
         </div>
       </div>
     </footer>

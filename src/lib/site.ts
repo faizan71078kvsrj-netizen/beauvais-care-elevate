@@ -35,7 +35,7 @@ export const IMG = {
   caregiver1: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=1200&q=80&auto=format&fit=crop",
   caregiver2: "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=1200&q=80&auto=format&fit=crop",
   senior1: "/senior1.png",
-  senior2: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=1200&q=80&auto=format&fit=crop",
+  senior2:  "/senior-care.png",
   senior3: "https://images.unsplash.com/photo-1566616213894-2d4e1baee5d8?w=1200&q=80&auto=format&fit=crop",
   nurse: "https://images.unsplash.com/photo-1584982751601-97dcc096659c?w=1200&q=80&auto=format&fit=crop",
   doctor: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=1200&q=80&auto=format&fit=crop",

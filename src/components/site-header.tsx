@@ -58,7 +58,7 @@ export function SiteHeader() {
             <img
               src="/logo.png"
               alt="Beauvais Group logo"
-              className="h-10 w-auto"
+              className="h-16 w-auto"
               draggable={false}
             />
             <span className="font-display font-bold text-foreground">Menu</span>
@@ -144,7 +144,7 @@ export function SiteHeader() {
           <img
             src="/logo.png"
             alt="Beauvais Group & Personal Care Home Inc. logo"
-            className="h-16 sm:h-20 md:h-24 w-auto shrink-0 select-none"
+            className="h-20 sm:h-24 md:h-28 lg:h-32 w-auto" shrink-0 select-none"
             draggable={false}
           />
         </Link>

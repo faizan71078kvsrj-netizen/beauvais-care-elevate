@@ -39,7 +39,7 @@ export const IMG = {
   senior3: "https://images.unsplash.com/photo-1566616213894-2d4e1baee5d8?w=1200&q=80&auto=format&fit=crop",
   nurse: "https://images.unsplash.com/photo-1584982751601-97dcc096659c?w=1200&q=80&auto=format&fit=crop",
   doctor: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=1200&q=80&auto=format&fit=crop",
-  assistedLiving:  "/senior-care.png",
+  assistedLiving: "/senior-care.png",
   dayCare: "/adult-day-care.png",
   memory: "/alzheimers-dementia-care.png",
   activity: "https://images.unsplash.com/photo-1544027993-37dbfe43562a?w=1200&q=80&auto=format&fit=crop",

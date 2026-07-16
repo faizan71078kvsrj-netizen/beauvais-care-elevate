@@ -30,7 +30,20 @@ function Page() {
     try {
       await submitAppointment({ data: form });
       setSubmitted(true);
-      toast.success("Thank you! We'll be in touch within 24 hours.");
+      toast.success("Thank you! Opening WhatsApp so you can confirm with our team.");
+      // WhatsApp handoff — pre-filled message, user just presses SEND
+      const waNumber = "13053671741";
+      const lines = [
+        `Hello Beauvais Group, I just submitted an appointment request.`,
+        `Name: ${form.name}`,
+        form.phone && `Phone: ${form.phone}`,
+        form.email && `Email: ${form.email}`,
+        form.service && `Service: ${form.service}`,
+        form.date && `Preferred date: ${form.date}`,
+        form.message && `Message: ${form.message}`,
+      ].filter(Boolean).join("\n");
+      const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(lines)}`;
+      window.open(waUrl, "_blank", "noopener,noreferrer");
       setForm({ name: "", email: "", phone: "", service: "", date: "", message: "" });
     } catch (err) {
       console.error(err);

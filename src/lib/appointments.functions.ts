@@ -135,6 +135,28 @@ export const submitAppointment = createServerFn({ method: "POST" })
     const businessEmail = process.env.BUSINESS_EMAIL || "BeauvaisGroup@gmail.com";
     const from = process.env.EMAIL_FROM || "Beauvais Group <onboarding@resend.dev>";
 
+    // Persist to Lovable Cloud (admin panel reads from here).
+    let appointmentId: string | null = null;
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: row } = await supabaseAdmin
+        .from("appointments")
+        .insert({
+          full_name: data.name,
+          email: data.email,
+          phone: data.phone,
+          service: data.service || null,
+          preferred_date: data.date || null,
+          message: data.message || null,
+          source: "website",
+        })
+        .select("id")
+        .single();
+      appointmentId = row?.id ?? null;
+    } catch (e) {
+      console.error("[appointments] db insert failed", e);
+    }
+
     const results = await Promise.allSettled([
       dispatchEmail({
         to: businessEmail,
@@ -159,5 +181,5 @@ export const submitAppointment = createServerFn({ method: "POST" })
       console.error("[appointments] partial delivery failure", errors);
     }
 
-    return { ok: true, delivered: errors.length === 0 };
+    return { ok: true, delivered: errors.length === 0, appointmentId };
   });

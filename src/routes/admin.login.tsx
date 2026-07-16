@@ -26,39 +26,70 @@ function LoginPage() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        navigate({ to: "/admin" });
+      console.log("[Login Page] Checking active session on mount...");
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error("[Login Page] Session retrieval error on mount:", error);
       }
-      const s = await bootstrapStatus();
-      setNeedsBootstrap(s.needsBootstrap);
+      if (data.session) {
+        console.log("[Login Page] Active session found on mount. Redirecting to /admin. User:", data.session.user.email);
+        navigate({ to: "/admin" });
+      } else {
+        console.log("[Login Page] No active session found on mount.");
+      }
+      
+      try {
+        const s = await bootstrapStatus();
+        console.log("[Login Page] Bootstrap status check completed:", s);
+        setNeedsBootstrap(s.needsBootstrap);
+      } catch (err) {
+        console.error("[Login Page] Failed to fetch bootstrap status:", err);
+      }
     })();
   }, [navigate]);
 
   const onSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("[Login Flow] 1. Starting onSignIn for email:", email);
     setBusy(true);
+
     try {
+      console.log("[Login Flow] 2. Calling supabase.auth.signInWithPassword...");
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
+        console.error("[Login Flow] 3a. Supabase signInWithPassword returned error:", error.message);
         toast.error(error.message);
         setBusy(false);
         return;
       }
 
+      console.log("[Login Flow] 3b. Supabase signInWithPassword successfully completed.");
+      console.log("[Login Flow] User ID:", data?.user?.id);
+      console.log("[Login Flow] Session access token exists:", !!data?.session?.access_token);
+
       if (data?.session) {
-        await supabase.auth.setSession(data.session);
-        // Force a minor deferral to guarantee storage writes complete
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        console.log("[Login Flow] 4. Explicitly synchronizing session client state...");
+        const { error: setSessionError } = await supabase.auth.setSession(data.session);
+        if (setSessionError) {
+          console.error("[Login Flow] Warning: error setting session manually:", setSessionError.message);
+        }
+
+        console.log("[Login Flow] 5. Double-checking active session is registered in current client...");
+        const verifiedSession = await supabase.auth.getSession();
+        console.log("[Login Flow] Verified local storage session is current:", !!verifiedSession.data.session);
+
+        console.log("[Login Flow] 6. Triggering navigate to /admin...");
         navigate({ to: "/admin" });
       } else {
-        toast.error("Session could not be established. Please try again.");
+        console.error("[Login Flow] Error: No session structure returned in successful auth payload.");
+        toast.error("Authentication succeeded, but active session was not generated.");
       }
     } catch (err: any) {
+      console.error("[Login Flow] Critical catch block error during sign in:", err);
       toast.error(err?.message ?? "An unexpected error occurred during sign in");
     } finally {
       setBusy(false);
@@ -67,20 +98,24 @@ function LoginPage() {
 
   const onBootstrap = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("[Bootstrap Flow] Starting system Super Admin creation...");
     setBusy(true);
     try {
       await bootstrapSuperAdmin({ data: { email, password, full_name: fullName } });
       toast.success("Super Admin created. Signing in…");
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       
+      console.log("[Bootstrap Flow] Attempting sign-in with newly generated credentials...");
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
       if (data?.session) {
+        console.log("[Bootstrap Flow] Synchronizing session state...");
         await supabase.auth.setSession(data.session);
         await new Promise((resolve) => setTimeout(resolve, 150));
         navigate({ to: "/admin" });
       }
     } catch (err: any) {
+      console.error("[Bootstrap Flow] Critical error encountered during bootstrapping setup:", err);
       toast.error(err?.message ?? "Failed to set up Super Admin");
     } finally {
       setBusy(false);

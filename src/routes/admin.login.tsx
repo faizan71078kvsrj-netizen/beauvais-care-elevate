@@ -72,15 +72,23 @@ function LoginPage() {
       console.log("[Login Flow] Session access token exists:", !!data?.session?.access_token);
 
       if (data?.session) {
-        console.log("[Login Flow] 4. Explicitly synchronizing session client state...");
-        const { error: setSessionError } = await supabase.auth.setSession(data.session);
+        console.log("[Login Flow] 4. Committing session and syncing storage...");
+        // Set session explicitly to ensure the client-side state is hydrated instantly
+        const { error: setSessionError } = await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+        
         if (setSessionError) {
-          console.error("[Login Flow] Warning: error setting session manually:", setSessionError.message);
+          console.error("[Login Flow] Error setting session manually:", setSessionError.message);
         }
 
-        console.log("[Login Flow] 5. Double-checking active session is registered in current client...");
+        // Essential: Yield thread briefly to let Supabase listeners & storage finish writing token data
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        console.log("[Login Flow] 5. Double-checking active session is registered...");
         const verifiedSession = await supabase.auth.getSession();
-        console.log("[Login Flow] Verified local storage session is current:", !!verifiedSession.data.session);
+        console.log("[Login Flow] Verified local storage session status:", !!verifiedSession.data.session);
 
         console.log("[Login Flow] 6. Triggering navigate to /admin...");
         navigate({ to: "/admin" });
@@ -110,7 +118,10 @@ function LoginPage() {
 
       if (data?.session) {
         console.log("[Bootstrap Flow] Synchronizing session state...");
-        await supabase.auth.setSession(data.session);
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
         await new Promise((resolve) => setTimeout(resolve, 150));
         navigate({ to: "/admin" });
       }

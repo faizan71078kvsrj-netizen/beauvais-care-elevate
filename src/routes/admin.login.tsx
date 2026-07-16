@@ -28,12 +28,7 @@ function LoginPage() {
     })();
   }, [navigate]);
 
-  const onSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setBusy(false);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
 
 setBusy(false);
 
@@ -50,9 +45,6 @@ if (error) {
 alert("Login Success");
 
 navigate({ to: "/admin" });
-    if (error) return toast.error(error.message);
-    navigate({ to: "/admin" });
-  };
 
   const onBootstrap = async (e: React.FormEvent) => {
     e.preventDefault();

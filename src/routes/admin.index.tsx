@@ -153,7 +153,7 @@ function AdminDashboard() {
     {
       title: "User Management",
       description: "Manage system administrators, profiles, and roles.",
-      href: "/admin/users" as const,
+      href: "/admin/users" as any,
       icon: Users,
       count: stats.usersCount,
       bgLight: "bg-blue-50 text-blue-600",
@@ -161,7 +161,7 @@ function AdminDashboard() {
     {
       title: "Leads",
       description: "Track sales pipelines, prospects, and deal sizes.",
-      href: "/admin/leads" as const,
+      href: "/admin/leads" as any,
       icon: Target,
       count: stats.leadsCount,
       bgLight: "bg-amber-50 text-amber-600",
@@ -169,7 +169,7 @@ function AdminDashboard() {
     {
       title: "Contacts",
       description: "Directory of client contacts, communication history.",
-      href: "/admin/contacts" as const,
+      href: "/admin/contacts" as any,
       icon: Contact,
       count: stats.contactsCount,
       bgLight: "bg-emerald-50 text-emerald-600",
@@ -177,7 +177,7 @@ function AdminDashboard() {
     {
       title: "Documents",
       description: "Manage files, uploaded agreements, and asset records.",
-      href: "/admin/documents" as const,
+      href: "/admin/documents" as any,
       icon: FileText,
       count: stats.documentsCount,
       bgLight: "bg-violet-50 text-violet-600",
@@ -185,7 +185,7 @@ function AdminDashboard() {
     {
       title: "Appointments",
       description: "Configure scheduling, meetings, and bookings.",
-      href: "/admin/appointments" as const,
+      href: "/admin/appointments" as any,
       icon: Calendar,
       count: stats.appointmentsCount,
       bgLight: "bg-rose-50 text-rose-600",
@@ -193,7 +193,7 @@ function AdminDashboard() {
     {
       title: "System Settings",
       description: "Configure site behavior, API details, and defaults.",
-      href: "/admin/settings" as const,
+      href: "/admin/settings" as any,
       icon: Settings,
       count: null,
       bgLight: "bg-slate-100 text-slate-700",

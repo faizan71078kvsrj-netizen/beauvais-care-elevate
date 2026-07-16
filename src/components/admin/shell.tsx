@@ -102,10 +102,10 @@ function AdminShell({ me, children }: { me: NonNullable<Me>; children: ReactNode
           {nav.map((n) => (
             <Link
               key={n.to}
-              to={n.to}
+              to={n.to as string}
               onClick={() => setOpen(false)}
               className={`flex items-center gap-3 rounded-md px-3 py-2 transition ${
-                active(n.to, "exact" in n && n.exact) ? "bg-slate-800 text-white" : "text-slate-300 hover:bg-slate-800/60 hover:text-white"
+                active(n.to, n.exact) ? "bg-slate-800 text-white" : "text-slate-300 hover:bg-slate-800/60 hover:text-white"
               }`}
             >
               <n.icon className="h-4 w-4" /> {n.label}

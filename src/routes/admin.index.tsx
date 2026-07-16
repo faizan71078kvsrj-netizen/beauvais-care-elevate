@@ -1,8 +1,23 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+```tsx
+import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { YDC } from "@/lib/admin/branding";
-import { LayoutDashboard, LogOut, Loader2 } from "lucide-react";
+import {
+  LayoutDashboard,
+  LogOut,
+  Loader2,
+  Users,
+  Target,
+  Contact,
+  FileText,
+  Calendar,
+  Settings,
+  ArrowUpRight,
+  TrendingUp,
+  FileCheck,
+  UserCheck
+} from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
   beforeLoad: async () => {
@@ -56,6 +71,14 @@ export const Route = createFileRoute("/admin/")({
 
 function AdminDashboard() {
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [stats, setStats] = useState({
+    usersCount: 0,
+    leadsCount: 0,
+    contactsCount: 0,
+    documentsCount: 0,
+    appointmentsCount: 0,
+    loading: true,
+  });
 
   useEffect(() => {
     console.log("[Dashboard Render] Verifying authenticated state inside component lifecycle...");
@@ -71,6 +94,29 @@ function AdminDashboard() {
       } else {
         console.log("[Dashboard Render] Session validated successfully inside component layout.");
         
+        // Load metric counts safely from Supabase
+        try {
+          const [usersRes, leadsRes, contactsRes, documentsRes, appointmentsRes] = await Promise.all([
+            supabase.from("profiles").select("*", { count: "exact", head: true }).limit(1),
+            supabase.from("leads").select("*", { count: "exact", head: true }).limit(1),
+            supabase.from("contacts").select("*", { count: "exact", head: true }).limit(1),
+            supabase.from("documents").select("*", { count: "exact", head: true }).limit(1),
+            supabase.from("appointments").select("*", { count: "exact", head: true }).limit(1),
+          ]);
+
+          setStats({
+            usersCount: usersRes.count || 0,
+            leadsCount: leadsRes.count || 0,
+            contactsCount: contactsRes.count || 0,
+            documentsCount: documentsRes.count || 0,
+            appointmentsCount: appointmentsRes.count || 0,
+            loading: false,
+          });
+        } catch (e) {
+          console.warn("[Dashboard Metrics] Failed to fetch live metric counts:", e);
+          setStats((prev) => ({ ...prev, loading: false }));
+        }
+
         // Listen for authentication changes to capture immediate logouts
         const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
           console.log("[Dashboard Auth Listener] State event triggered:", event);
@@ -106,12 +152,69 @@ function AdminDashboard() {
     );
   }
 
+  const navigationItems = [
+    {
+      title: "User Management",
+      description: "Manage system administrators, profiles, and roles.",
+      href: "/admin/users",
+      icon: Users,
+      count: stats.usersCount,
+      color: "from-blue-500 to-indigo-500",
+      bgLight: "bg-blue-50 text-blue-600",
+    },
+    {
+      title: "Leads",
+      description: "Track sales pipelines, prospects, and deal sizes.",
+      href: "/admin/leads",
+      icon: Target,
+      count: stats.leadsCount,
+      color: "from-amber-500 to-orange-500",
+      bgLight: "bg-amber-50 text-amber-600",
+    },
+    {
+      title: "Contacts",
+      description: "Directory of client contacts, communication history.",
+      href: "/admin/contacts",
+      icon: Contact,
+      count: stats.contactsCount,
+      color: "from-emerald-500 to-teal-500",
+      bgLight: "bg-emerald-50 text-emerald-600",
+    },
+    {
+      title: "Documents",
+      description: "Manage files, uploaded agreements, and asset records.",
+      href: "/admin/documents",
+      icon: FileText,
+      count: stats.documentsCount,
+      color: "from-violet-500 to-purple-500",
+      bgLight: "bg-violet-50 text-violet-600",
+    },
+    {
+      title: "Appointments",
+      description: "Configure scheduling, meetings, and bookings.",
+      href: "/admin/appointments",
+      icon: Calendar,
+      count: stats.appointmentsCount,
+      color: "from-rose-500 to-pink-500",
+      bgLight: "bg-rose-50 text-rose-600",
+    },
+    {
+      title: "System Settings",
+      description: "Configure site behavior, API details, and defaults.",
+      href: "/admin/settings",
+      icon: Settings,
+      count: null,
+      color: "from-slate-600 to-slate-800",
+      bgLight: "bg-slate-100 text-slate-700",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header Banner */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-sky-500 to-emerald-400 text-white font-bold text-lg flex items-center justify-center">
+          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-sky-500 to-emerald-400 text-white font-bold text-lg flex items-center justify-center shadow-sm">
             Y
           </div>
           <div>
@@ -130,23 +233,78 @@ function AdminDashboard() {
 
       {/* Main Workspace Panel */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="p-6 bg-white rounded-xl border border-slate-200 shadow-sm flex items-start gap-4">
-            <div className="p-3 bg-sky-50 text-sky-600 rounded-lg">
-              <LayoutDashboard className="h-6 w-6" />
+        {/* Welcome Section */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-2 text-center md:text-left">
+            <h2 className="text-2xl font-bold text-slate-950">Welcome Back</h2>
+            <p className="text-slate-600 max-w-xl text-sm">
+              You are securely authenticated. Manage global metrics, workflows, appointments, documents, and system configurations below.
+            </p>
+          </div>
+          <div className="flex items-center gap-4 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100 text-left shrink-0">
+            <div className="p-2 bg-emerald-100 text-emerald-700 rounded-md">
+              <LayoutDashboard className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">System Live Status</h3>
-              <p className="text-xs text-slate-500 mt-1">First-run deployment parameters are fully online.</p>
+              <div className="text-xs font-semibold text-slate-900">System Live Status</div>
+              <div className="text-[11px] text-slate-500">All deployment services active.</div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 text-center space-y-4">
-          <h2 className="text-xl font-bold text-slate-900">Welcome to Beauvais Group Admin Portal</h2>
-          <p className="text-slate-600 max-w-md mx-auto text-sm">
-            You are securely authenticated. Use this interface to manage system assets, configurations, and super admin access.
-          </p>
+        {/* Dashboard Grid Header */}
+        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">System Modules & Navigation</h3>
+          <span className="text-xs text-slate-500 font-medium">Select a system sector to manage</span>
+        </div>
+
+        {/* Modules Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {navigationItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                to={item.href}
+                className="group bg-white rounded-xl border border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col h-full overflow-hidden"
+              >
+                <div className="p-6 flex-1 space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div className={`p-3 rounded-lg ${item.bgLight} transition-colors`}>
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400 group-hover:text-slate-900 transition-colors">
+                      Go to module
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <h4 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                      {item.title}
+                    </h4>
+                    <p className="text-sm text-slate-500 leading-relaxed">
+                      {item.description}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Footer status bar inside cards */}
+                <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+                  <span>Current Metric:</span>
+                  {stats.loading ? (
+                    <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+                  ) : item.count !== null ? (
+                    <span className="font-semibold text-slate-800 bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
+                      {item.count} Record{item.count !== 1 ? "s" : ""}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400">System Ready</span>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </main>
 
@@ -157,3 +315,5 @@ function AdminDashboard() {
     </div>
   );
 }
+
+```

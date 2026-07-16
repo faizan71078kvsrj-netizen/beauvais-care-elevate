@@ -320,6 +320,4 @@ function AdminDashboard() {
       </footer>
     </div>
   );
-}
-
-```
+}s

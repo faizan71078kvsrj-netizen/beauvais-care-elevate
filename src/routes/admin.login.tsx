@@ -1,3 +1,4 @@
+```tsx
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,23 +29,27 @@ function LoginPage() {
     })();
   }, [navigate]);
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const onSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-setBusy(false);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
 
-console.log("LOGIN ERROR:", error);
-
-const { data } = await supabase.auth.getSession();
-console.log("SESSION:", data);
-
-if (error) {
-  alert(error.message);
-  return;
-}
-
-alert("Login Success");
-
-navigate({ to: "/admin" });
+      navigate({ to: "/admin" });
+    } catch (err: any) {
+      toast.error(err?.message ?? "An unexpected error occurred during sign in");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const onBootstrap = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,12 +61,10 @@ navigate({ to: "/admin" });
       if (error) throw error;
       navigate({ to: "/admin" });
     } catch (err: any) {
-  console.error("BOOTSTRAP ERROR:", err);
-  alert(err?.message || JSON.stringify(err));
-  toast.error(err?.message ?? "Failed to set up Super Admin");
-} finally {
-  setBusy(false);
-}
+      toast.error(err?.message ?? "Failed to set up Super Admin");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -126,3 +129,5 @@ function Field({ label, value, onChange, type = "text", required }: { label: str
     </div>
   );
 }
+
+```

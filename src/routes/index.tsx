@@ -37,80 +37,6 @@ function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* HERO */}
-      <section className="relative isolate overflow-hidden">
-        <div className="absolute inset-0 -z-10 gradient-soft" />
-        <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-primary/20 blur-3xl -z-10" />
-        <div className="absolute -bottom-40 -left-40 h-[500px] w-[500px] rounded-full bg-secondary/20 blur-3xl -z-10" />
-
-        <div className="mx-auto grid max-w-7xl gap-12 px-6 py-12 md:py-20 lg:grid-cols-[1.05fr_1fr] lg:items-center">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/70 border border-primary/20 px-4 py-1.5 text-xs font-semibold text-primary uppercase tracking-widest shadow-soft backdrop-blur">
-              <Sparkles className="h-3.5 w-3.5" /> Licensed Personal Care Home · Lawrenceville, GA
-            </div>
-            <h1 className="mt-6 font-display text-4xl sm:text-5xl md:text-6xl font-bold leading-[1.05] text-foreground text-balance">
-              Where Every Senior is <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Treated Like Family</span>
-            </h1>
-            <p className="mt-6 text-lg text-muted-foreground max-w-xl leading-relaxed">
-              Compassionate 24-hour care rooted in dignity, warmth, and clinical excellence. From daily wellness to memory care, Beauvais Group is a true home away from home.
-            </p>
-
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link to="/contact" className="inline-flex items-center gap-2 rounded-full gradient-hero px-6 py-3.5 text-sm font-semibold text-white shadow-elegant hover:shadow-glow transition">
-                <Calendar className="h-4 w-4" /> Book Appointment
-              </Link>
-              <a href={BRAND.phoneHref} className="inline-flex items-center gap-2 rounded-full border-2 border-primary/30 bg-white px-6 py-3.5 text-sm font-semibold text-primary hover:bg-primary/5 transition">
-                <Phone className="h-4 w-4" /> {BRAND.phone}
-              </a>
-              <a href={BRAND.whatsapp} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full bg-secondary/10 border border-secondary/30 px-6 py-3.5 text-sm font-semibold text-secondary-foreground hover:bg-secondary hover:text-white transition">
-                <MessageCircle className="h-4 w-4" /> WhatsApp
-              </a>
-            </div>
-
-            <div className="mt-10 grid grid-cols-3 gap-4 max-w-md">
-              {[
-                { n: "20+", l: "Years Caring" },
-                { n: "24/7", l: "On-Site Staff" },
-                { n: "100%", l: "Family Trust" },
-              ].map((s) => (
-                <div key={s.l} className="rounded-2xl bg-white/70 backdrop-blur border border-border p-4 text-center shadow-card">
-                  <div className="font-display text-2xl font-bold text-primary">{s.n}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{s.l}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative">
-            <div className="absolute -inset-6 rounded-[2rem] gradient-hero opacity-30 blur-3xl" />
-            <div className="relative rounded-[2rem] overflow-hidden shadow-elegant border-8 border-white">
-              <img src={IMG.caregiver1} alt="Compassionate caregiver with senior" className="h-[520px] w-full object-cover" />
-            </div>
-            <div className="absolute -bottom-6 -left-6 rounded-2xl bg-white p-4 shadow-elegant border border-border max-w-[220px]">
-              <div className="flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/15">
-                  <Shield className="h-5 w-5 text-secondary" />
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">State Licensed</div>
-                  <div className="text-sm font-bold text-foreground">Fully Insured</div>
-                </div>
-              </div>
-            </div>
-            <div className="absolute -top-4 -right-4 rounded-2xl bg-primary p-4 text-white shadow-elegant max-w-[200px]">
-              <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                <div>
-                  <div className="text-xs opacity-80">Available</div>
-                  <div className="text-sm font-bold">24 / 7 / 365</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ABOUT PREVIEW */}
       <section className="mx-auto max-w-7xl px-6 py-12 md:py-20">
         <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
@@ -610,7 +536,78 @@ function HomePage() {
           </div>
         </div>
       </section>
+      {/* HERO */}
+      <section className="relative isolate overflow-hidden">
+        <div className="absolute inset-0 -z-10 gradient-soft" />
+        <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-primary/20 blur-3xl -z-10" />
+        <div className="absolute -bottom-40 -left-40 h-[500px] w-[500px] rounded-full bg-secondary/20 blur-3xl -z-10" />
 
+        <div className="mx-auto grid max-w-7xl gap-12 px-6 py-12 md:py-20 lg:grid-cols-[1.05fr_1fr] lg:items-center">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/70 border border-primary/20 px-4 py-1.5 text-xs font-semibold text-primary uppercase tracking-widest shadow-soft backdrop-blur">
+              <Sparkles className="h-3.5 w-3.5" /> Licensed Personal Care Home · Lawrenceville, GA
+            </div>
+            <h1 className="mt-6 font-display text-4xl sm:text-5xl md:text-6xl font-bold leading-[1.05] text-foreground text-balance">
+              Where Every Senior is <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Treated Like Family</span>
+            </h1>
+            <p className="mt-6 text-lg text-muted-foreground max-w-xl leading-relaxed">
+              Compassionate 24-hour care rooted in dignity, warmth, and clinical excellence. From daily wellness to memory care, Beauvais Group is a true home away from home.
+            </p>
+
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Link to="/contact" className="inline-flex items-center gap-2 rounded-full gradient-hero px-6 py-3.5 text-sm font-semibold text-white shadow-elegant hover:shadow-glow transition">
+                <Calendar className="h-4 w-4" /> Book Appointment
+              </Link>
+              <a href={BRAND.phoneHref} className="inline-flex items-center gap-2 rounded-full border-2 border-primary/30 bg-white px-6 py-3.5 text-sm font-semibold text-primary hover:bg-primary/5 transition">
+                <Phone className="h-4 w-4" /> {BRAND.phone}
+              </a>
+              <a href={BRAND.whatsapp} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full bg-secondary/10 border border-secondary/30 px-6 py-3.5 text-sm font-semibold text-secondary-foreground hover:bg-secondary hover:text-white transition">
+                <MessageCircle className="h-4 w-4" /> WhatsApp
+              </a>
+            </div>
+
+            <div className="mt-10 grid grid-cols-3 gap-4 max-w-md">
+              {[
+                { n: "20+", l: "Years Caring" },
+                { n: "24/7", l: "On-Site Staff" },
+                { n: "100%", l: "Family Trust" },
+              ].map((s) => (
+                <div key={s.l} className="rounded-2xl bg-white/70 backdrop-blur border border-border p-4 text-center shadow-card">
+                  <div className="font-display text-2xl font-bold text-primary">{s.n}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{s.l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative">
+            <div className="absolute -inset-6 rounded-[2rem] gradient-hero opacity-30 blur-3xl" />
+            <div className="relative rounded-[2rem] overflow-hidden shadow-elegant border-8 border-white">
+              <img src={IMG.caregiver1} alt="Compassionate caregiver with senior" className="h-[520px] w-full object-cover" />
+            </div>
+            <div className="absolute -bottom-6 -left-6 rounded-2xl bg-white p-4 shadow-elegant border border-border max-w-[220px]">
+              <div className="flex items-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/15">
+                  <Shield className="h-5 w-5 text-secondary" />
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">State Licensed</div>
+                  <div className="text-sm font-bold text-foreground">Fully Insured</div>
+                </div>
+              </div>
+            </div>
+            <div className="absolute -top-4 -right-4 rounded-2xl bg-primary p-4 text-white shadow-elegant max-w-[200px]">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                <div>
+                  <div className="text-xs opacity-80">Available</div>
+                  <div className="text-sm font-bold">24 / 7 / 365</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
       {/* CTA */}
       <section className="mx-auto max-w-7xl px-6 py-14">
         <div className="relative overflow-hidden rounded-[2.5rem] gradient-hero p-10 md:p-16 shadow-elegant">

@@ -9,11 +9,25 @@ export const Route = createFileRoute("/admin/")({
     console.log("[Admin Guard] 1. Evaluating beforeLoad route guard rules for '/admin'...");
     
     // Check cached session
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    let { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     if (sessionError) {
       console.error("[Admin Guard] Session check query returned an error:", sessionError);
     }
     
+    // Fallback: If getSession is momentarily empty due to async lag, poll up to 3 times to prevent route guard rejection
+    if (!sessionData.session) {
+      console.log("[Admin Guard] Direct session cache empty. Retrying verification to prevent timing race conditions...");
+      for (let i = 0; i < 3; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        const retryResult = await supabase.auth.getSession();
+        if (retryResult.data.session) {
+          sessionData = retryResult.data;
+          console.log(`[Admin Guard] Session recovered on attempt #${i + 1}`);
+          break;
+        }
+      }
+    }
+
     console.log("[Admin Guard] Local session verification result:", !!sessionData.session);
 
     // If local session cache isn't built yet, fall back directly to authenticating user context

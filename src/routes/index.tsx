@@ -12,6 +12,32 @@ export const Route = createFileRoute("/")({ component: HomePage });
 function HomePage() {
   return (
     <SiteLayout>
+      {/* A day here */}
+      <section className="bg-surface py-14">
+        <div className="mx-auto max-w-7xl px-6 grid gap-12 lg:grid-cols-2 lg:items-center">
+          <img src={IMG.assistedLiving} alt="Assisted living" className="rounded-3xl shadow-elegant h-[480px] w-full object-cover" />
+          <div>
+            <div className="text-xs font-semibold text-secondary uppercase tracking-widest">A Day at Beauvais</div>
+            <h2 className="mt-3 font-display text-3xl md:text-4xl font-bold text-foreground text-balance">
+              Structured yet gentle — every day flows with purpose.
+            </h2>
+            <ul className="mt-6 space-y-4">
+              {[
+                { t: "Morning", d: "Breakfast, medication, gentle stretching, and personal care." },
+                { t: "Midday", d: "Lunch, group activities, therapy sessions, and quiet time." },
+                { t: "Afternoon", d: "Outdoor time, hobbies, family visits, and snacks." },
+                { t: "Evening", d: "Dinner, entertainment, evening care, and restful sleep." },
+              ].map((row) => (
+                <li key={row.t} className="flex gap-4 items-start">
+                  <div className="mt-1 rounded-full gradient-hero px-3 py-1 text-xs font-bold text-white shrink-0">{row.t}</div>
+                  <div className="text-sm text-foreground">{row.d}</div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
       {/* HERO */}
       <section className="relative isolate overflow-hidden">
         <div className="absolute inset-0 -z-10 gradient-soft" />

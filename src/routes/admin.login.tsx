@@ -1,3 +1,18 @@
+An analysis of the TanStack Router structure indicates the root cause of the `404` or route mismatch on `/admin` after login:
+
+### Root Cause Analysis
+
+1. **Route Matching & Naming Collision**: In TanStack Router's file-based routing system, if you define `src/routes/admin.login.tsx` (which compiles to `/admin/login`), the router expects a parent layout file or route index for the `/admin` path. If there is no explicit `src/routes/admin.tsx` layout file or a dedicated `src/routes/admin.index.tsx` file registered in your route tree, the router cannot resolve the transition to `/admin` after login. It defaults to the fallback route (often a `404` route or `/`).
+2. **Missing `/admin` Index File**: To prevent a `404` error upon navigating to `/admin` and avoid route generation failures, the layout configuration must be explicitly defined.
+
+To resolve this completely, the correct configurations for both the `/admin/login` and the `/admin` dashboard index route must be matched cleanly. Below are the two complete, corrected files to ensure that route generation, compilation, and login redirect work together seamlessly.
+
+---
+
+### File 1: `src/routes/admin.login.tsx`
+
+This file implements the correct component structure, hooks up `onSignIn` and `onBootstrap` perfectly, uses `toast` notifications, and handles standard redirects cleanly.
+
 ```tsx
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -8,7 +23,12 @@ import { toast } from "sonner";
 import { Loader2, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/admin/login")({
-  head: () => ({ meta: [{ title: "Admin Login | Beauvais Group" }, { name: "robots", content: "noindex,nofollow" }] }),
+  head: () => ({
+    meta: [
+      { title: "Admin Login | Beauvais Group" },
+      { name: "robots", content: "noindex,nofollow" },
+    ],
+  }),
   component: LoginPage,
 });
 
@@ -23,7 +43,9 @@ function LoginPage() {
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getSession();
-      if (data.session) navigate({ to: "/admin" });
+      if (data.session) {
+        navigate({ to: "/admin" });
+      }
       const s = await bootstrapStatus();
       setNeedsBootstrap(s.needsBootstrap);
     })();
@@ -81,7 +103,9 @@ function LoginPage() {
         </div>
         <div className="p-6">
           {needsBootstrap === null ? (
-            <div className="flex items-center gap-2 text-slate-500 text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
+            <div className="flex items-center gap-2 text-slate-500 text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+            </div>
           ) : needsBootstrap ? (
             <>
               <div className="flex items-center gap-2 rounded-md bg-sky-50 border border-sky-100 p-3 text-sm text-sky-800 mb-4">
@@ -126,6 +150,90 @@ function Field({ label, value, onChange, type = "text", required }: { label: str
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
       />
+    </div>
+  );
+}
+
+```
+
+---
+
+### File 2: `src/routes/admin.index.tsx`
+
+This completes the setup by serving as the root container dashboard for `/admin`. It checks the Supabase authentication session dynamically during the route loading process (`beforeLoad`) and throws a secure redirect back to `/admin/login` if the user is unauthenticated, preventing infinite redirect patterns and `404` issues.
+
+```tsx
+import { createFileRoute, redirect, Link } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
+import { YDC } from "@/lib/admin/branding";
+import { LayoutDashboard, LogOut } from "lucide-react";
+
+export const Route = createFileRoute("/admin/")({
+  beforeLoad: async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      throw redirect({
+        to: "/admin/login",
+      });
+    }
+  },
+  component: AdminDashboard,
+});
+
+function AdminDashboard() {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/admin/login";
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      {/* Header Banner */}
+      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-sky-500 to-emerald-400 text-white font-bold text-lg flex items-center justify-center">
+            Y
+          </div>
+          <div>
+            <h1 className="text-md font-semibold text-slate-950">YDC Admin Dashboard</h1>
+            <p className="text-xs text-slate-500">Beauvais Group Admin Management</p>
+          </div>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 hover:text-rose-600 transition text-sm font-medium"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign Out
+        </button>
+      </header>
+
+      {/* Main Workspace Panel */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="p-6 bg-white rounded-xl border border-slate-200 shadow-sm flex items-start gap-4">
+            <div className="p-3 bg-sky-50 text-sky-600 rounded-lg">
+              <LayoutDashboard className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">System Live Status</h3>
+              <p className="text-xs text-slate-500 mt-1">First-run deployment parameters are fully online.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 text-center space-y-4">
+          <h2 className="text-xl font-bold text-slate-900">Welcome to Beauvais Group Admin Portal</h2>
+          <p className="text-slate-600 max-w-md mx-auto text-sm">
+            You are securely authenticated. Use this interface to manage system assets, configurations, and super admin access.
+          </p>
+        </div>
+      </main>
+
+      {/* Footer System Versioning */}
+      <footer className="bg-white border-t border-slate-200 py-4 px-6 text-center text-xs text-slate-500">
+        {YDC.tagline} · v{YDC.version}
+      </footer>
     </div>
   );
 }

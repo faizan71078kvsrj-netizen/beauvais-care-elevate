@@ -33,6 +33,23 @@ function LoginPage() {
     setBusy(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+setBusy(false);
+
+console.log("LOGIN ERROR:", error);
+
+const { data } = await supabase.auth.getSession();
+console.log("SESSION:", data);
+
+if (error) {
+  alert(error.message);
+  return;
+}
+
+alert("Login Success");
+
+navigate({ to: "/admin" });
     if (error) return toast.error(error.message);
     navigate({ to: "/admin" });
   };

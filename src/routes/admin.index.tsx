@@ -13,10 +13,7 @@ import {
   FileText,
   Calendar,
   Settings,
-  ArrowUpRight,
-  TrendingUp,
-  FileCheck,
-  UserCheck
+  ArrowUpRight
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
@@ -94,7 +91,7 @@ function AdminDashboard() {
       } else {
         console.log("[Dashboard Render] Session validated successfully inside component layout.");
         
-        // Load metric counts safely from Supabase
+        // Load metric counts safely from Supabase checking table/view existence or fallback smoothly
         try {
           const [usersRes, leadsRes, contactsRes, documentsRes, appointmentsRes] = await Promise.all([
             supabase.from("profiles").select("*", { count: "exact", head: true }).limit(1),
@@ -156,55 +153,49 @@ function AdminDashboard() {
     {
       title: "User Management",
       description: "Manage system administrators, profiles, and roles.",
-      href: "/admin/users",
+      href: "/admin/users" as const,
       icon: Users,
       count: stats.usersCount,
-      color: "from-blue-500 to-indigo-500",
       bgLight: "bg-blue-50 text-blue-600",
     },
     {
       title: "Leads",
       description: "Track sales pipelines, prospects, and deal sizes.",
-      href: "/admin/leads",
+      href: "/admin/leads" as const,
       icon: Target,
       count: stats.leadsCount,
-      color: "from-amber-500 to-orange-500",
       bgLight: "bg-amber-50 text-amber-600",
     },
     {
       title: "Contacts",
       description: "Directory of client contacts, communication history.",
-      href: "/admin/contacts",
+      href: "/admin/contacts" as const,
       icon: Contact,
       count: stats.contactsCount,
-      color: "from-emerald-500 to-teal-500",
       bgLight: "bg-emerald-50 text-emerald-600",
     },
     {
       title: "Documents",
       description: "Manage files, uploaded agreements, and asset records.",
-      href: "/admin/documents",
+      href: "/admin/documents" as const,
       icon: FileText,
       count: stats.documentsCount,
-      color: "from-violet-500 to-purple-500",
       bgLight: "bg-violet-50 text-violet-600",
     },
     {
       title: "Appointments",
       description: "Configure scheduling, meetings, and bookings.",
-      href: "/admin/appointments",
+      href: "/admin/appointments" as const,
       icon: Calendar,
       count: stats.appointmentsCount,
-      color: "from-rose-500 to-pink-500",
       bgLight: "bg-rose-50 text-rose-600",
     },
     {
       title: "System Settings",
       description: "Configure site behavior, API details, and defaults.",
-      href: "/admin/settings",
+      href: "/admin/settings" as const,
       icon: Settings,
       count: null,
-      color: "from-slate-600 to-slate-800",
       bgLight: "bg-slate-100 text-slate-700",
     },
   ];

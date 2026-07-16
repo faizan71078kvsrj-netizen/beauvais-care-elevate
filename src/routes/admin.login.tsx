@@ -39,17 +39,26 @@ function LoginPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
         toast.error(error.message);
+        setBusy(false);
         return;
       }
 
-      navigate({ to: "/admin" });
+      if (data?.session) {
+        // Force immediate session state synchronization
+        await supabase.auth.setSession(data.session);
+        // Micro-delay to let local storage and auth listeners bind safely
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        navigate({ to: "/admin" });
+      } else {
+        toast.error("Session could not be established. Please try again.");
+      }
     } catch (err: any) {
       toast.error(err?.message ?? "An unexpected error occurred during sign in");
     } finally {
@@ -63,9 +72,15 @@ function LoginPage() {
     try {
       await bootstrapSuperAdmin({ data: { email, password, full_name: fullName } });
       toast.success("Super Admin created. Signing in…");
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      
       if (error) throw error;
-      navigate({ to: "/admin" });
+
+      if (data?.session) {
+        await supabase.auth.setSession(data.session);
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        navigate({ to: "/admin" });
+      }
     } catch (err: any) {
       toast.error(err?.message ?? "Failed to set up Super Admin");
     } finally {

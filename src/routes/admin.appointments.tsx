@@ -16,7 +16,7 @@ function Page() {
   const qc = useQueryClient();
   const { data = [] } = useQuery({ queryKey: ["appointments"], queryFn: () => listAppointments() });
   const update = useMutation({
-    mutationFn: (v: Parameters<typeof updateAppointment>[0]["data"]) => updateAppointment({ data: v }),
+    mutationFn: (v: { id: string; status?: "pending" | "confirmed" | "completed" | "cancelled"; assigned_to?: string | null; internal_notes?: string | null }) => updateAppointment({ data: v }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
   });
   const remove = useMutation({

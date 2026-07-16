@@ -23,7 +23,16 @@ import { Route as ActivitiesRouteImport } from './routes/activities'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminLeadsRouteImport } from './routes/admin.leads'
+import { Route as AdminDocumentsRouteImport } from './routes/admin.documents'
+import { Route as AdminCustomersRouteImport } from './routes/admin.customers'
+import { Route as AdminContactsRouteImport } from './routes/admin.contacts'
+import { Route as AdminAuditRouteImport } from './routes/admin.audit'
+import { Route as AdminAppointmentsRouteImport } from './routes/admin.appointments'
+import { Route as AdminAiChatRouteImport } from './routes/admin.ai-chat'
 
 const VideosRoute = VideosRouteImport.update({
   id: '/videos',
@@ -95,9 +104,54 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/admin/settings',
+  path: '/admin/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/admin/login',
   path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminLeadsRoute = AdminLeadsRouteImport.update({
+  id: '/admin/leads',
+  path: '/admin/leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDocumentsRoute = AdminDocumentsRouteImport.update({
+  id: '/admin/documents',
+  path: '/admin/documents',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminCustomersRoute = AdminCustomersRouteImport.update({
+  id: '/admin/customers',
+  path: '/admin/customers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminContactsRoute = AdminContactsRouteImport.update({
+  id: '/admin/contacts',
+  path: '/admin/contacts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAuditRoute = AdminAuditRouteImport.update({
+  id: '/admin/audit',
+  path: '/admin/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAppointmentsRoute = AdminAppointmentsRouteImport.update({
+  id: '/admin/appointments',
+  path: '/admin/appointments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAiChatRoute = AdminAiChatRouteImport.update({
+  id: '/admin/ai-chat',
+  path: '/admin/ai-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -115,7 +169,16 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/videos': typeof VideosRoute
+  '/admin/ai-chat': typeof AdminAiChatRoute
+  '/admin/appointments': typeof AdminAppointmentsRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/contacts': typeof AdminContactsRoute
+  '/admin/customers': typeof AdminCustomersRoute
+  '/admin/documents': typeof AdminDocumentsRoute
+  '/admin/leads': typeof AdminLeadsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
@@ -132,7 +195,16 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/videos': typeof VideosRoute
+  '/admin/ai-chat': typeof AdminAiChatRoute
+  '/admin/appointments': typeof AdminAppointmentsRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/contacts': typeof AdminContactsRoute
+  '/admin/customers': typeof AdminCustomersRoute
+  '/admin/documents': typeof AdminDocumentsRoute
+  '/admin/leads': typeof AdminLeadsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
@@ -150,7 +222,16 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/videos': typeof VideosRoute
+  '/admin/ai-chat': typeof AdminAiChatRoute
+  '/admin/appointments': typeof AdminAppointmentsRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/contacts': typeof AdminContactsRoute
+  '/admin/customers': typeof AdminCustomersRoute
+  '/admin/documents': typeof AdminDocumentsRoute
+  '/admin/leads': typeof AdminLeadsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
@@ -169,7 +250,16 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/testimonials'
     | '/videos'
+    | '/admin/ai-chat'
+    | '/admin/appointments'
+    | '/admin/audit'
+    | '/admin/contacts'
+    | '/admin/customers'
+    | '/admin/documents'
+    | '/admin/leads'
     | '/admin/login'
+    | '/admin/settings'
+    | '/admin/users'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -186,7 +276,16 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/testimonials'
     | '/videos'
+    | '/admin/ai-chat'
+    | '/admin/appointments'
+    | '/admin/audit'
+    | '/admin/contacts'
+    | '/admin/customers'
+    | '/admin/documents'
+    | '/admin/leads'
     | '/admin/login'
+    | '/admin/settings'
+    | '/admin/users'
     | '/admin'
   id:
     | '__root__'
@@ -203,7 +302,16 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/testimonials'
     | '/videos'
+    | '/admin/ai-chat'
+    | '/admin/appointments'
+    | '/admin/audit'
+    | '/admin/contacts'
+    | '/admin/customers'
+    | '/admin/documents'
+    | '/admin/leads'
     | '/admin/login'
+    | '/admin/settings'
+    | '/admin/users'
     | '/admin/'
   fileRoutesById: FileRoutesById
 }
@@ -221,7 +329,16 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TestimonialsRoute: typeof TestimonialsRoute
   VideosRoute: typeof VideosRoute
+  AdminAiChatRoute: typeof AdminAiChatRoute
+  AdminAppointmentsRoute: typeof AdminAppointmentsRoute
+  AdminAuditRoute: typeof AdminAuditRoute
+  AdminContactsRoute: typeof AdminContactsRoute
+  AdminCustomersRoute: typeof AdminCustomersRoute
+  AdminDocumentsRoute: typeof AdminDocumentsRoute
+  AdminLeadsRoute: typeof AdminLeadsRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -325,11 +442,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/admin/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/login': {
       id: '/admin/login'
       path: '/admin/login'
       fullPath: '/admin/login'
       preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/leads': {
+      id: '/admin/leads'
+      path: '/admin/leads'
+      fullPath: '/admin/leads'
+      preLoaderRoute: typeof AdminLeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/documents': {
+      id: '/admin/documents'
+      path: '/admin/documents'
+      fullPath: '/admin/documents'
+      preLoaderRoute: typeof AdminDocumentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/customers': {
+      id: '/admin/customers'
+      path: '/admin/customers'
+      fullPath: '/admin/customers'
+      preLoaderRoute: typeof AdminCustomersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/contacts': {
+      id: '/admin/contacts'
+      path: '/admin/contacts'
+      fullPath: '/admin/contacts'
+      preLoaderRoute: typeof AdminContactsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/audit': {
+      id: '/admin/audit'
+      path: '/admin/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AdminAuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/appointments': {
+      id: '/admin/appointments'
+      path: '/admin/appointments'
+      fullPath: '/admin/appointments'
+      preLoaderRoute: typeof AdminAppointmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/ai-chat': {
+      id: '/admin/ai-chat'
+      path: '/admin/ai-chat'
+      fullPath: '/admin/ai-chat'
+      preLoaderRoute: typeof AdminAiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -349,7 +529,16 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TestimonialsRoute: TestimonialsRoute,
   VideosRoute: VideosRoute,
+  AdminAiChatRoute: AdminAiChatRoute,
+  AdminAppointmentsRoute: AdminAppointmentsRoute,
+  AdminAuditRoute: AdminAuditRoute,
+  AdminContactsRoute: AdminContactsRoute,
+  AdminCustomersRoute: AdminCustomersRoute,
+  AdminDocumentsRoute: AdminDocumentsRoute,
+  AdminLeadsRoute: AdminLeadsRoute,
   AdminLoginRoute: AdminLoginRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 export const routeTree = rootRouteImport

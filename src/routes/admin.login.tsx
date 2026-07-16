@@ -47,10 +47,12 @@ function LoginPage() {
       if (error) throw error;
       navigate({ to: "/admin" });
     } catch (err: any) {
-      toast.error(err?.message ?? "Failed to set up Super Admin");
-    } finally {
-      setBusy(false);
-    }
+  console.error("BOOTSTRAP ERROR:", err);
+  alert(err?.message || JSON.stringify(err));
+  toast.error(err?.message ?? "Failed to set up Super Admin");
+} finally {
+  setBusy(false);
+}
   };
 
   return (

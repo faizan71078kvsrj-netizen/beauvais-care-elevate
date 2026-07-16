@@ -27,12 +27,12 @@ export const Route = createFileRoute("/admin/")({
     }
     
     // Fallback: If getSession is momentarily empty due to async lag, poll up to 3 times to prevent route guard rejection
-    if (!sessionData.session) {
+    if (!sessionData || !sessionData.session) {
       console.log("[Admin Guard] Direct session cache empty. Retrying verification to prevent timing race conditions...");
       for (let i = 0; i < 3; i++) {
         await new Promise((resolve) => setTimeout(resolve, 50));
         const retryResult = await supabase.auth.getSession();
-        if (retryResult.data.session) {
+        if (retryResult.data && retryResult.data.session) {
           sessionData = retryResult.data;
           console.log(`[Admin Guard] Session recovered on attempt #${i + 1}`);
           break;
@@ -40,10 +40,11 @@ export const Route = createFileRoute("/admin/")({
       }
     }
 
-    console.log("[Admin Guard] Local session verification result:", !!sessionData.session);
+    const hasSession = !!(sessionData && sessionData.session);
+    console.log("[Admin Guard] Local session verification result:", hasSession);
 
     // If local session cache isn't built yet, fall back directly to authenticating user context
-    if (!sessionData.session) {
+    if (!hasSession) {
       console.log("[Admin Guard] Session cache empty. Retrieving fresh system user context from client...");
       const { data: userData, error: userError } = await supabase.auth.getUser();
       
@@ -51,7 +52,7 @@ export const Route = createFileRoute("/admin/")({
         console.warn("[Admin Guard] Failed to find authenticated user:", userError.message);
       }
 
-      if (!userData.user) {
+      if (!userData || !userData.user) {
         console.warn("[Admin Guard] Access Blocked: No session or user match. Redirecting user back to /admin/login.");
         throw redirect({
           to: "/admin/login",
@@ -79,28 +80,35 @@ function AdminDashboard() {
 
   useEffect(() => {
     console.log("[Dashboard Render] Verifying authenticated state inside component lifecycle...");
+    let active = true;
+    let authListenerSubscription: { unsubscribe: () => void } | null = null;
+
     const checkUser = async () => {
       const { data, error } = await supabase.auth.getSession();
       if (error) {
         console.error("[Dashboard Render] Error querying active session inside dashboard mount:", error);
       }
 
-      if (!data.session) {
+      if (!data || !data.session) {
         console.warn("[Dashboard Render] Verification failure: No current session. Enforcing redirect to login.");
         window.location.href = "/admin/login";
-      } else {
-        console.log("[Dashboard Render] Session validated successfully inside component layout.");
-        
-        // Load metric counts safely from Supabase checking table/view existence or fallback smoothly
-        try {
-          const [usersRes, leadsRes, contactsRes, documentsRes, appointmentsRes] = await Promise.all([
-            supabase.from("profiles").select("*", { count: "exact", head: true }).limit(1),
-            supabase.from("leads").select("*", { count: "exact", head: true }).limit(1),
-            supabase.from("contacts").select("*", { count: "exact", head: true }).limit(1),
-            supabase.from("documents").select("*", { count: "exact", head: true }).limit(1),
-            supabase.from("appointments").select("*", { count: "exact", head: true }).limit(1),
-          ]);
+        return;
+      }
 
+      if (!active) return;
+      console.log("[Dashboard Render] Session validated successfully inside component layout.");
+      
+      // Load metric counts safely from Supabase checking table/view existence or fallback smoothly
+      try {
+        const [usersRes, leadsRes, contactsRes, documentsRes, appointmentsRes] = await Promise.all([
+          supabase.from("profiles").select("*", { count: "exact", head: true }).limit(1),
+          supabase.from("leads").select("*", { count: "exact", head: true }).limit(1),
+          supabase.from("contacts").select("*", { count: "exact", head: true }).limit(1),
+          supabase.from("documents").select("*", { count: "exact", head: true }).limit(1),
+          supabase.from("appointments").select("*", { count: "exact", head: true }).limit(1),
+        ]);
+
+        if (active) {
           setStats({
             usersCount: usersRes.count || 0,
             leadsCount: leadsRes.count || 0,
@@ -109,28 +117,36 @@ function AdminDashboard() {
             appointmentsCount: appointmentsRes.count || 0,
             loading: false,
           });
-        } catch (e) {
-          console.warn("[Dashboard Metrics] Failed to fetch live metric counts:", e);
+        }
+      } catch (e) {
+        console.warn("[Dashboard Metrics] Failed to fetch live metric counts:", e);
+        if (active) {
           setStats((prev) => ({ ...prev, loading: false }));
         }
+      }
 
-        // Listen for authentication changes to capture immediate logouts
-        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-          console.log("[Dashboard Auth Listener] State event triggered:", event);
-          if (event === "SIGNED_OUT" || !session) {
-            console.log("[Dashboard Auth Listener] User signed out. Relocating layout...");
-            window.location.href = "/admin/login";
-          }
-        });
+      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+        console.log("[Dashboard Auth Listener] State event triggered:", event);
+        if (event === "SIGNED_OUT" || !session) {
+          console.log("[Dashboard Auth Listener] User signed out. Relocating layout...");
+          window.location.href = "/admin/login";
+        }
+      });
 
+      authListenerSubscription = authListener.subscription;
+      if (active) {
         setCheckingAuth(false);
-        return () => {
-          authListener.subscription.unsubscribe();
-        };
       }
     };
     
     checkUser();
+
+    return () => {
+      active = false;
+      if (authListenerSubscription) {
+        authListenerSubscription.unsubscribe();
+      }
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -153,7 +169,7 @@ function AdminDashboard() {
     {
       title: "User Management",
       description: "Manage system administrators, profiles, and roles.",
-      href: "/admin/users" as any,
+      href: "/admin/users",
       icon: Users,
       count: stats.usersCount,
       bgLight: "bg-blue-50 text-blue-600",
@@ -161,7 +177,7 @@ function AdminDashboard() {
     {
       title: "Leads",
       description: "Track sales pipelines, prospects, and deal sizes.",
-      href: "/admin/leads" as any,
+      href: "/admin/leads",
       icon: Target,
       count: stats.leadsCount,
       bgLight: "bg-amber-50 text-amber-600",
@@ -169,7 +185,7 @@ function AdminDashboard() {
     {
       title: "Contacts",
       description: "Directory of client contacts, communication history.",
-      href: "/admin/contacts" as any,
+      href: "/admin/contacts",
       icon: Contact,
       count: stats.contactsCount,
       bgLight: "bg-emerald-50 text-emerald-600",
@@ -177,7 +193,7 @@ function AdminDashboard() {
     {
       title: "Documents",
       description: "Manage files, uploaded agreements, and asset records.",
-      href: "/admin/documents" as any,
+      href: "/admin/documents",
       icon: FileText,
       count: stats.documentsCount,
       bgLight: "bg-violet-50 text-violet-600",
@@ -185,7 +201,7 @@ function AdminDashboard() {
     {
       title: "Appointments",
       description: "Configure scheduling, meetings, and bookings.",
-      href: "/admin/appointments" as any,
+      href: "/admin/appointments",
       icon: Calendar,
       count: stats.appointmentsCount,
       bgLight: "bg-rose-50 text-rose-600",
@@ -193,7 +209,7 @@ function AdminDashboard() {
     {
       title: "System Settings",
       description: "Configure site behavior, API details, and defaults.",
-      href: "/admin/settings" as any,
+      href: "/admin/settings",
       icon: Settings,
       count: null,
       bgLight: "bg-slate-100 text-slate-700",

@@ -10,7 +10,8 @@ import {
 
 type Me = { userId: string; profile: any; roles: string[] } | null;
 
-const NAV = [
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean; adminOnly?: boolean };
+const NAV: NavItem[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/appointments", label: "Appointments", icon: CalendarClock },
   { to: "/admin/contacts", label: "Contact Forms", icon: MessageSquare },
@@ -21,7 +22,7 @@ const NAV = [
   { to: "/admin/users", label: "Users & Roles", icon: Users, adminOnly: true },
   { to: "/admin/audit", label: "Audit Logs", icon: ScrollText, adminOnly: true },
   { to: "/admin/settings", label: "Settings", icon: Settings, adminOnly: true },
-] as const;
+];
 
 export function AdminGate({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me>(null);

@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -98,15 +99,10 @@ function RootComponent() {
 }
 
 function SophiaMount() {
-  const [ready, setReady] = useState(false);
-  const [hidden, setHidden] = useState(true);
-  useEffect(() => {
-    setReady(true);
-    const check = () => setHidden(window.location.pathname.startsWith("/admin"));
-    check();
-    window.addEventListener("popstate", check);
-    return () => window.removeEventListener("popstate", check);
-  }, []);
-  if (!ready || hidden) return null;
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  if (pathname.startsWith("/admin")) return null;
   return <SophiaChat />;
 }

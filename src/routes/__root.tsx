@@ -7,7 +7,8 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { SophiaChat } from "@/components/sophia-chat";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -91,6 +92,21 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      <SophiaMount />
     </QueryClientProvider>
   );
+}
+
+function SophiaMount() {
+  const [ready, setReady] = useState(false);
+  const [hidden, setHidden] = useState(true);
+  useEffect(() => {
+    setReady(true);
+    const check = () => setHidden(window.location.pathname.startsWith("/admin"));
+    check();
+    window.addEventListener("popstate", check);
+    return () => window.removeEventListener("popstate", check);
+  }, []);
+  if (!ready || hidden) return null;
+  return <SophiaChat />;
 }

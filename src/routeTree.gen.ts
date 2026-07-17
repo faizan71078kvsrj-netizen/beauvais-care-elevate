@@ -33,6 +33,7 @@ import { Route as AdminContactsRouteImport } from './routes/admin.contacts'
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
 import { Route as AdminAppointmentsRouteImport } from './routes/admin.appointments'
 import { Route as AdminAiChatRouteImport } from './routes/admin.ai-chat'
+import { Route as AdminAiRouteImport } from './routes/admin.ai'
 
 const VideosRoute = VideosRouteImport.update({
   id: '/videos',
@@ -154,6 +155,11 @@ const AdminAiChatRoute = AdminAiChatRouteImport.update({
   path: '/admin/ai-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminAiRoute = AdminAiRouteImport.update({
+  id: '/admin/ai',
+  path: '/admin/ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/videos': typeof VideosRoute
+  '/admin/ai': typeof AdminAiRoute
   '/admin/ai-chat': typeof AdminAiChatRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -195,6 +202,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/videos': typeof VideosRoute
+  '/admin/ai': typeof AdminAiRoute
   '/admin/ai-chat': typeof AdminAiChatRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -222,6 +230,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/videos': typeof VideosRoute
+  '/admin/ai': typeof AdminAiRoute
   '/admin/ai-chat': typeof AdminAiChatRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -250,6 +259,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/testimonials'
     | '/videos'
+    | '/admin/ai'
     | '/admin/ai-chat'
     | '/admin/appointments'
     | '/admin/audit'
@@ -276,6 +286,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/testimonials'
     | '/videos'
+    | '/admin/ai'
     | '/admin/ai-chat'
     | '/admin/appointments'
     | '/admin/audit'
@@ -302,6 +313,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/testimonials'
     | '/videos'
+    | '/admin/ai'
     | '/admin/ai-chat'
     | '/admin/appointments'
     | '/admin/audit'
@@ -329,6 +341,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TestimonialsRoute: typeof TestimonialsRoute
   VideosRoute: typeof VideosRoute
+  AdminAiRoute: typeof AdminAiRoute
   AdminAiChatRoute: typeof AdminAiChatRoute
   AdminAppointmentsRoute: typeof AdminAppointmentsRoute
   AdminAuditRoute: typeof AdminAuditRoute
@@ -512,6 +525,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/ai': {
+      id: '/admin/ai'
+      path: '/admin/ai'
+      fullPath: '/admin/ai'
+      preLoaderRoute: typeof AdminAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -529,6 +549,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TestimonialsRoute: TestimonialsRoute,
   VideosRoute: VideosRoute,
+  AdminAiRoute: AdminAiRoute,
   AdminAiChatRoute: AdminAiChatRoute,
   AdminAppointmentsRoute: AdminAppointmentsRoute,
   AdminAuditRoute: AdminAuditRoute,

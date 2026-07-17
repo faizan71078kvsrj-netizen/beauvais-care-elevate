@@ -19,6 +19,7 @@ const NAV: NavItem[] = [
   { to: "/admin/customers", label: "Customers", icon: Contact },
   { to: "/admin/documents", label: "Documents", icon: FileText },
   { to: "/admin/ai-chat", label: "AI Chats", icon: Bot },
+  { to: "/admin/ai", label: "Sophia AI", icon: Bot, adminOnly: true },
   { to: "/admin/users", label: "Users & Roles", icon: Users, adminOnly: true },
   { to: "/admin/audit", label: "Audit Logs", icon: ScrollText, adminOnly: true },
   { to: "/admin/settings", label: "Settings", icon: Settings, adminOnly: true },

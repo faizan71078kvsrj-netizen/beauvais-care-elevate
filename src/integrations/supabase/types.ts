@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_errors: {
+        Row: {
+          code: string | null
+          created_at: string
+          id: string
+          message: string | null
+          metadata: Json | null
+          session_id: string | null
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          id?: string
+          message?: string | null
+          metadata?: Json | null
+          session_id?: string | null
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          id?: string
+          message?: string | null
+          metadata?: Json | null
+          session_id?: string | null
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           assigned_to: string | null
@@ -103,28 +130,43 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          page_url: string | null
           role: string
           session_id: string
+          user_agent: string | null
           user_id: string | null
+          visitor_email: string | null
           visitor_id: string | null
+          visitor_name: string | null
+          visitor_phone: string | null
         }
         Insert: {
           content: string
           created_at?: string
           id?: string
+          page_url?: string | null
           role: string
           session_id: string
+          user_agent?: string | null
           user_id?: string | null
+          visitor_email?: string | null
           visitor_id?: string | null
+          visitor_name?: string | null
+          visitor_phone?: string | null
         }
         Update: {
           content?: string
           created_at?: string
           id?: string
+          page_url?: string | null
           role?: string
           session_id?: string
+          user_agent?: string | null
           user_id?: string | null
+          visitor_email?: string | null
           visitor_id?: string | null
+          visitor_name?: string | null
+          visitor_phone?: string | null
         }
         Relationships: []
       }
@@ -268,6 +310,42 @@ export type Database = {
           tags?: string[] | null
           title?: string
           uploaded_by?: string | null
+        }
+        Relationships: []
+      }
+      knowledge_files: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          source: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          source?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          source?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }

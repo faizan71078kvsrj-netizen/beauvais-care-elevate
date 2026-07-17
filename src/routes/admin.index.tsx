@@ -60,7 +60,7 @@ export const Route = createFileRoute("/admin/")({
       
       console.log("[Admin Guard] Access Allowed: Fresh user verification succeeded.", userData.user.email);
     } else {
-      console.log("[Admin Guard] Access Allowed: Existing session verification succeeded.", sessionData.session.user.email);
+      console.log("[Admin Guard] Access Allowed: Existing session verification succeeded.", sessionData.session?.user.email);
     }
   },
   component: AdminDashboard,

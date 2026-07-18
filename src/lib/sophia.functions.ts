@@ -232,6 +232,7 @@ export const sophiaChat = createServerFn({ method: "POST" })
     message: data.message,
   },
 });
+        console.log("submitAppointment finished");
         await supabaseAdmin.from("leads").insert({
           full_name: data.visitor.name,
           email: data.visitor.email || null,

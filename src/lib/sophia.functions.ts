@@ -1,3 +1,4 @@
+import { submitAppointment } from "@/lib/appointments.functions";
 /**
  * Sophia — Beauvais Care Assistant (Gemini-backed)
  *
@@ -221,6 +222,16 @@ export const sophiaChat = createServerFn({ method: "POST" })
     // If appointment intent AND visitor provided contact info, drop a lead so it lands in CRM.
     if (detectAppointmentIntent(data.message) && data.visitor?.name) {
       try {
+        await submitAppointment({
+  data: {
+    name: data.visitor.name,
+    email: data.visitor.email || "",
+    phone: data.visitor.phone || "",
+    service: "Care Home Tour",
+    date: "",
+    message: data.message,
+  },
+});
         await supabaseAdmin.from("leads").insert({
           full_name: data.visitor.name,
           email: data.visitor.email || null,

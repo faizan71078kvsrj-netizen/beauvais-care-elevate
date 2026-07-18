@@ -233,6 +233,12 @@ export const sophiaChat = createServerFn({ method: "POST" })
   },
 });
         console.log("submitAppointment finished");
+        const { error: checkError } = await supabaseAdmin
+  .from("appointments")
+  .select("*")
+  .limit(1);
+
+console.log("Appointments table error:", checkError);
         await supabaseAdmin.from("leads").insert({
           full_name: data.visitor.name,
           email: data.visitor.email || null,

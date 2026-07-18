@@ -139,7 +139,7 @@ export const submitAppointment = createServerFn({ method: "POST" })
     let appointmentId: string | null = null;
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: row } = await supabaseAdmin
+      const { data: row, error } = await supabaseAdmin
         .from("appointments")
         .insert({
           full_name: data.name,
@@ -152,6 +152,10 @@ export const submitAppointment = createServerFn({ method: "POST" })
         })
         .select("id")
         .single();
+      if (error) {
+  console.error("APPOINTMENT INSERT ERROR:", error);
+  throw error;
+}
       appointmentId = row?.id ?? null;
     } catch (e) {
       console.error("[appointments] db insert failed", e);

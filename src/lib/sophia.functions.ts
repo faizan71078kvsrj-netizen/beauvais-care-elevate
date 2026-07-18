@@ -246,9 +246,6 @@ console.log("Appointments table error:", checkError);
           await supabaseAdmin.from("leads").insert({
   ...
 });
-
-throw new Error("TEST STOP");
-
 } catch (e) {
   console.error("Appointment Error:", e);
 }

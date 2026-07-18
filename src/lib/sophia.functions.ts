@@ -240,9 +240,9 @@ export const sophiaChat = createServerFn({ method: "POST" })
           status: "new",
           notes: `Auto-created from Sophia chat. Session ${data.session_id}. Message: ${data.message.slice(0, 400)}`,
         });
-      } catch {
-        // non-fatal
-      }
+      } catch (e) {
+  console.error("Appointment Error:", e);
+}
     }
 
     return { reply, appointment_intent: detectAppointmentIntent(data.message) };

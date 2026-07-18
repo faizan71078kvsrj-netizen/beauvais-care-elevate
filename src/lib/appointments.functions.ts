@@ -158,8 +158,9 @@ export const submitAppointment = createServerFn({ method: "POST" })
 }
       appointmentId = row?.id ?? null;
     } catch (e) {
-      console.error("[appointments] db insert failed", e);
-    }
+  console.error("[appointments] db insert failed", e);
+  throw e;
+}
 
     const results = await Promise.allSettled([
       dispatchEmail({

@@ -243,6 +243,15 @@ if (error) {
 
 console.log("Appointments table error:", checkError);
         await supabaseAdmin.from("leads").insert({
+          await supabaseAdmin.from("leads").insert({
+  ...
+});
+
+throw new Error("TEST STOP");
+
+} catch (e) {
+  console.error("Appointment Error:", e);
+}
           full_name: data.visitor.name,
           email: data.visitor.email || null,
           phone: data.visitor.phone || null,

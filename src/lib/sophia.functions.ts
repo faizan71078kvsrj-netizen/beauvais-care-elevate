@@ -222,16 +222,19 @@ export const sophiaChat = createServerFn({ method: "POST" })
     // If appointment intent AND visitor provided contact info, drop a lead so it lands in CRM.
     if (detectAppointmentIntent(data.message) && data.visitor?.name) {
       try {
-        await submitAppointment({
-  data: {
-    name: data.visitor.name,
-    email: data.visitor.email || "",
-    phone: data.visitor.phone || "",
-    service: "Care Home Tour",
-    date: "",
-    message: data.message,
-  },
+        const { error } = await supabaseAdmin.from("appointments").insert({
+  full_name: data.visitor.name,
+  email: data.visitor.email || null,
+  phone: data.visitor.phone || null,
+  service: "Care Home Tour",
+  preferred_date: null,
+  message: data.message,
+  source: "sophia_chat",
 });
+
+if (error) {
+  console.error("DIRECT INSERT ERROR:", error);
+}
         console.log("submitAppointment finished");
         const { error: checkError } = await supabaseAdmin
   .from("appointments")

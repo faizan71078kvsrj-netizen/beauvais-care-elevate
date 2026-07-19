@@ -174,11 +174,6 @@ export const sophiaChat = createServerFn({ method: "POST" })
         session_id: data.session_id,
         role: "user",
         content: data.message,
-        page_url: data.page_url ?? null,
-        user_agent: data.user_agent ?? null,
-        visitor_name: data.visitor?.name ?? null,
-        visitor_email: data.visitor?.email || null,
-        visitor_phone: data.visitor?.phone ?? null,
       });
       if (userInsertErr) {
         console.error("Error inserting user chat message:", userInsertErr);
@@ -228,8 +223,6 @@ export const sophiaChat = createServerFn({ method: "POST" })
         session_id: data.session_id,
         role: "assistant",
         content: reply,
-        page_url: data.page_url ?? null,
-        user_agent: data.user_agent ?? null,
       });
       if (assistantInsertErr) {
         console.error("Error inserting assistant chat message:", assistantInsertErr);

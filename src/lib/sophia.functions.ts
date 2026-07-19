@@ -231,16 +231,8 @@ export const sophiaChat = createServerFn({ method: "POST" })
   message: data.message,
   source: "sophia_chat",
 });
-
 if (error) {
   console.error("DIRECT INSERT ERROR:", error);
-          full_name: data.visitor.name,
-          email: data.visitor.email || null,
-          phone: data.visitor.phone || null,
-          source: "sophia_chat",
-          status: "new",
-          notes: `Auto-created from Sophia chat. Session ${data.session_id}. Message: ${data.message.slice(0, 400)}`,
-        });
       } catch (e) {
   console.error("Appointment Error:", e);
 }

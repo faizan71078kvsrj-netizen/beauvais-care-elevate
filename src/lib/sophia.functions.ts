@@ -233,6 +233,8 @@ export const sophiaChat = createServerFn({ method: "POST" })
 
     // If appointment intent AND visitor provided contact info, drop a lead and appointment so it lands in CRM.
     const hasIntent = detectAppointmentIntent(data.message);
+    console.log("HAS INTENT =", hasIntent);
+console.log("VISITOR =", data.visitor);
     if (hasIntent && data.visitor?.name) {
       try {
         const { error: apptError } = await supabaseAdmin.from("appointments").insert({

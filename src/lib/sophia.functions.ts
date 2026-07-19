@@ -245,7 +245,9 @@ export const sophiaChat = createServerFn({ method: "POST" })
           source: "sophia_chat",
         });
         if (apptError) {
-          console.error("DIRECT INSERT ERROR:", apptError);
+          console.error("APPOINTMENT INSERT ERROR:", JSON.stringify(apptError, null, 2));
+        } else {
+          console.log("APPOINTMENT INSERT SUCCESS");
         }
       } catch (e) {
         console.error("Appointment Error:", e);
@@ -260,7 +262,9 @@ export const sophiaChat = createServerFn({ method: "POST" })
           source: "sophia_chat",
         });
         if (leadError) {
-          console.error("LEAD INSERT ERROR:", leadError);
+          console.error("LEAD INSERT ERROR:", JSON.stringify(leadError, null, 2));
+        } else {
+          console.log("LEAD INSERT SUCCESS");
         }
       } catch (e) {
         console.error("Lead Error:", e);

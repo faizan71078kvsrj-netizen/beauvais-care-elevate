@@ -233,11 +233,11 @@ export const sophiaChat = createServerFn({ method: "POST" })
 });
 if (error) {
   console.error("DIRECT INSERT ERROR:", error);
-      } catch (e) {
+}
+
+} catch (e) {
   console.error("Appointment Error:", e);
 }
-    }
-
     return { reply, appointment_intent: detectAppointmentIntent(data.message) };
   });
 

@@ -199,6 +199,14 @@ export const sophiaChat = createServerFn({ method: "POST" })
 
     let reply = "";
     try {
+      console.log("PAYLOAD IMMEDIATELY BEFORE callGemini():", JSON.stringify({
+        model,
+        system: "[SYSTEM PROMPT TRUNCATED FOR LOGS]",
+        historyCount: data.history.length,
+        userMessage: data.message,
+        visitor: data.visitor
+      }, null, 2));
+
       reply = await callGemini({
         model,
         system,

@@ -102,7 +102,10 @@ async function callGemini(opts: {
   system: string;
   history: ChatTurn[];
   userMessage: string;
+  visitor?: { name?: string; email?: string; phone?: string };
 }): Promise<string> {
+  console.log("callGemini RECEIVED VISITOR OBJECT:", JSON.stringify(opts.visitor, null, 2));
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("gemini_key_missing");
 
@@ -154,6 +157,8 @@ async function callGemini(opts: {
 export const sophiaChat = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ChatInput.parse(d))
   .handler(async ({ data }) => {
+    console.log("sophiaChat HANDLER RECEIVED visitor:", JSON.stringify(data.visitor, null, 2));
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Load AI settings (enabled flag + model)
@@ -199,6 +204,7 @@ export const sophiaChat = createServerFn({ method: "POST" })
         system,
         history: data.history,
         userMessage: data.message,
+        visitor: data.visitor,
       });
     } catch (err: any) {
       // Log the raw error for admin review; return a friendly message to visitor
@@ -233,8 +239,6 @@ export const sophiaChat = createServerFn({ method: "POST" })
 
     // If appointment intent AND visitor provided contact info, drop a lead and appointment so it lands in CRM.
     const hasIntent = detectAppointmentIntent(data.message);
-    console.log("HAS INTENT =", hasIntent);
-console.log("VISITOR =", data.visitor);
     if (hasIntent && data.visitor?.name) {
       try {
         const { error: apptError } = await supabaseAdmin.from("appointments").insert({

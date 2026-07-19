@@ -8,6 +8,7 @@ import { submitAppointment } from "@/lib/appointments.functions";
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 // ------------ Types ------------
 type ChatTurn = { role: "user" | "assistant"; content: string };
@@ -168,16 +169,23 @@ export const sophiaChat = createServerFn({ method: "POST" })
     const model = process.env.GEMINI_MODEL || ai.model || "gemini-2.5-flash";
 
     // Persist inbound user turn
-    await supabaseAdmin.from("chat_messages").insert({
-      session_id: data.session_id,
-      role: "user",
-      content: data.message,
-      page_url: data.page_url ?? null,
-      user_agent: data.user_agent ?? null,
-      visitor_name: data.visitor?.name ?? null,
-      visitor_email: data.visitor?.email || null,
-      visitor_phone: data.visitor?.phone ?? null,
-    });
+    try {
+      const { error: userInsertErr } = await supabaseAdmin.from("chat_messages").insert({
+        session_id: data.session_id,
+        role: "user",
+        content: data.message,
+        page_url: data.page_url ?? null,
+        user_agent: data.user_agent ?? null,
+        visitor_name: data.visitor?.name ?? null,
+        visitor_email: data.visitor?.email || null,
+        visitor_phone: data.visitor?.phone ?? null,
+      });
+      if (userInsertErr) {
+        console.error("Error inserting user chat message:", userInsertErr);
+      }
+    } catch (insertCatchErr) {
+      console.error("Exception handling user chat message insertion:", insertCatchErr);
+    }
 
     // Build system prompt with cached knowledge
     const [knowledge, siteFacts] = await Promise.all([loadKnowledge(), loadSiteFacts()]);
@@ -199,51 +207,77 @@ export const sophiaChat = createServerFn({ method: "POST" })
       });
     } catch (err: any) {
       // Log the raw error for admin review; return a friendly message to visitor
-      await supabaseAdmin.from("ai_errors").insert({
-        session_id: data.session_id,
-        code: err?.message ?? "unknown",
-        message: String(err?.body ?? err?.message ?? err).slice(0, 2000),
-        metadata: { status: err?.status ?? null, model },
-      });
+      try {
+        await supabaseAdmin.from("ai_errors").insert({
+          session_id: data.session_id,
+          code: err?.message ?? "unknown",
+          message: String(err?.body ?? err?.message ?? err).slice(0, 2000),
+          metadata: { status: err?.status ?? null, model },
+        });
+      } catch (logErr) {
+        console.error("Failed to log AI error to database:", logErr);
+      }
       return { reply: OUT_OF_CREDIT_MESSAGE, error: true };
     }
 
     if (!reply) reply = OUT_OF_CREDIT_MESSAGE;
 
     // Persist assistant reply
-    await supabaseAdmin.from("chat_messages").insert({
-      session_id: data.session_id,
-      role: "assistant",
-      content: reply,
-      page_url: data.page_url ?? null,
-      user_agent: data.user_agent ?? null,
-    });
+    try {
+      const { error: assistantInsertErr } = await supabaseAdmin.from("chat_messages").insert({
+        session_id: data.session_id,
+        role: "assistant",
+        content: reply,
+        page_url: data.page_url ?? null,
+        user_agent: data.user_agent ?? null,
+      });
+      if (assistantInsertErr) {
+        console.error("Error inserting assistant chat message:", assistantInsertErr);
+      }
+    } catch (insertCatchErr) {
+      console.error("Exception handling assistant chat message insertion:", insertCatchErr);
+    }
 
-    // If appointment intent AND visitor provided contact info, drop a lead so it lands in CRM.
-    if (detectAppointmentIntent(data.message) && data.visitor?.name) {
+    // If appointment intent AND visitor provided contact info, drop a lead and appointment so it lands in CRM.
+    const hasIntent = detectAppointmentIntent(data.message);
+    if (hasIntent && data.visitor?.name) {
       try {
-        const { error } = await supabaseAdmin.from("appointments").insert({
-  full_name: data.visitor.name,
-  email: data.visitor.email || null,
-  phone: data.visitor.phone || null,
-  service: "Care Home Tour",
-  preferred_date: null,
-  message: data.message,
-  source: "sophia_chat",
-});
-if (error) {
-  console.error("DIRECT INSERT ERROR:", error);
-}
+        const { error: apptError } = await supabaseAdmin.from("appointments").insert({
+          full_name: data.visitor.name,
+          email: data.visitor.email || null,
+          phone: data.visitor.phone || null,
+          service: "Care Home Tour",
+          preferred_date: null,
+          message: data.message,
+          source: "sophia_chat",
+        });
+        if (apptError) {
+          console.error("DIRECT INSERT ERROR:", apptError);
+        }
+      } catch (e) {
+        console.error("Appointment Error:", e);
+      }
 
-} catch (e) {
-  console.error("Appointment Error:", e);
-}
-    return { reply, appointment_intent: detectAppointmentIntent(data.message) };
+      try {
+        const { error: leadError } = await supabaseAdmin.from("leads").insert({
+          full_name: data.visitor.name,
+          email: data.visitor.email || null,
+          phone: data.visitor.phone || null,
+          message: data.message,
+          source: "sophia_chat",
+        });
+        if (leadError) {
+          console.error("LEAD INSERT ERROR:", leadError);
+        }
+      } catch (e) {
+        console.error("Lead Error:", e);
+      }
+    }
+
+    return { reply, appointment_intent: hasIntent };
   });
 
 // ------------ Admin knowledge management ------------
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
 const KnowledgeSchema = z.object({
   title: z.string().min(1).max(200),
   source: z.string().max(200).optional().or(z.literal("")),

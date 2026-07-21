@@ -2,7 +2,13 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminGate, Card } from "@/components/admin/shell";
-import { listAppointments, updateAppointment, deleteAppointment } from "@/lib/admin/api.functions";
+import {
+  listAppointments,
+  createAppointment,
+  updateAppointment,
+  deleteAppointment,
+} from "@/lib/admin/api.functions";
+import { useAdminAuth } from "@/lib/admin/auth";
 import { toast } from "sonner";
 import {
   Calendar as CalendarIcon,
@@ -18,7 +24,6 @@ import {
   Plus,
   Download,
   CalendarDays,
-  Sparkles,
   Bell,
   X,
   ChevronLeft,
@@ -26,13 +31,20 @@ import {
   FileSpreadsheet,
   FileText,
   FileCode,
+  Printer,
+  Globe,
+  User,
+  ShieldCheck,
   TrendingUp,
-  AlertCircle,
-  UserCheck,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/appointments")({
-  head: () => ({ meta: [{ title: "Appointments · Admin" }, { name: "robots", content: "noindex,nofollow" }] }),
+  head: () => ({
+    meta: [
+      { title: "Appointments · Admin" },
+      { name: "robots", content: "noindex,nofollow" },
+    ],
+  }),
   component: () => (
     <AdminGate>
       <Page />
@@ -45,7 +57,13 @@ type StatusType = (typeof STATUSES)[number];
 
 function Page() {
   const qc = useQueryClient();
-  const { data = [] } = useQuery({ queryKey: ["appointments"], queryFn: () => listAppointments() });
+  const { user } = useAdminAuth();
+  const loggedInRole = user?.role || user?.user_metadata?.role || "Admin";
+
+  const { data = [] } = useQuery({
+    queryKey: ["appointments"],
+    queryFn: () => listAppointments(),
+  });
 
   // ---------------------------------------------------------------------------
   // STATE MANAGEMENT
@@ -57,7 +75,6 @@ function Page() {
   // Filter Popover & Controls
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [filterService, setFilterService] = useState<string>("all");
-  const [filterSource, setFilterSource] = useState<string>("all");
   const [presetRange, setPresetRange] = useState<"all" | "today" | "week" | "month">("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -67,16 +84,20 @@ function Page() {
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [calendarViewMode, setCalendarViewMode] = useState<"month" | "week" | "day">("month");
   const [calendarCurrentDate, setCalendarCurrentDate] = useState(new Date());
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [exportDateRange, setExportDateRange] = useState<"all" | "today" | "yesterday" | "7days" | "month">("all");
 
   // New Appointment Form State
+  const [serviceSearch, setServiceSearch] = useState("");
+  const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
   const [newAppt, setNewAppt] = useState({
     full_name: "",
     email: "",
     phone: "",
     service: "",
-    preferred_date: "",
+    preferred_date: new Date().toISOString().split("T")[0],
     preferred_time: "10:00 AM",
     notes: "",
   });
@@ -99,6 +120,28 @@ function Page() {
   }, []);
 
   // ---------------------------------------------------------------------------
+  // DYNAMIC SERVICES EXTRACTOR
+  // ---------------------------------------------------------------------------
+  const availableServices = useMemo(() => {
+    const set = new Set<string>([
+      "General Consultation",
+      "Property Inspection",
+      "Listing Strategy",
+      "Legal Advisory",
+    ]);
+    data.forEach((a: any) => {
+      if (a.service) set.add(a.service);
+    });
+    return Array.from(set);
+  }, [data]);
+
+  const filteredServicesList = useMemo(() => {
+    return availableServices.filter((s) =>
+      s.toLowerCase().includes(serviceSearch.toLowerCase())
+    );
+  }, [availableServices, serviceSearch]);
+
+  // ---------------------------------------------------------------------------
   // EXISTING API MUTATIONS
   // ---------------------------------------------------------------------------
   const update = useMutation({
@@ -113,6 +156,25 @@ function Page() {
       toast.success("Appointment updated");
     },
     onError: (e: any) => toast.error(e?.message ?? "Update failed"),
+  });
+
+  const createMut = useMutation({
+    mutationFn: (data: any) => createAppointment({ data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+      toast.success("New appointment created successfully");
+      setShowAddModal(false);
+      setNewAppt({
+        full_name: "",
+        email: "",
+        phone: "",
+        service: "",
+        preferred_date: new Date().toISOString().split("T")[0],
+        preferred_time: "10:00 AM",
+        notes: "",
+      });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to create appointment"),
   });
 
   const remove = useMutation({
@@ -137,7 +199,11 @@ function Page() {
     const day = d.getDate().toString().padStart(2, "0");
     const month = d.toLocaleDateString("en-US", { month: "short" });
     const year = d.getFullYear();
-    const timeStr = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+    const timeStr = d.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
 
     return {
       weekday,
@@ -171,13 +237,24 @@ function Page() {
     return null;
   };
 
-  const uniqueServices = useMemo(() => {
-    const set = new Set<string>();
-    data.forEach((a: any) => {
-      if (a.service) set.add(a.service);
-    });
-    return Array.from(set);
-  }, [data]);
+  const getAppointmentSourceDetails = (a: any) => {
+    const rawSource = a.source || a.created_via || (a.metadata?.source ?? "");
+    let source = "Website";
+    let createdBy = a.created_by || "Customer";
+
+    if (rawSource.toLowerCase().includes("sophia") || a.is_ai_booked) {
+      source = "Sophia AI";
+      createdBy = "Sophia AI";
+    } else if (rawSource.toLowerCase().includes("admin") || a.created_by_admin) {
+      source = "Admin Panel";
+      createdBy = a.created_by || loggedInRole;
+    } else if (rawSource.toLowerCase().includes("api")) {
+      source = "API";
+      createdBy = "Integration API";
+    }
+
+    return { source, createdBy };
+  };
 
   // ---------------------------------------------------------------------------
   // SEARCH & ADVANCED FILTERING
@@ -190,7 +267,7 @@ function Page() {
       // 1. Tab Status
       if (activeTab !== "all" && a.status !== activeTab) return false;
 
-      // 2. Filter Menu Status
+      // 2. Filter Menu Service
       if (filterService !== "all" && a.service !== filterService) return false;
 
       // 3. Search Query
@@ -200,8 +277,10 @@ function Page() {
         const matchesPhone = a.phone?.toLowerCase().includes(q);
         const matchesEmail = a.email?.toLowerCase().includes(q);
         const matchesService = a.service?.toLowerCase().includes(q);
-        const matchesId = a.id?.toLowerCase().includes(q) || `ba-${a.id?.slice(0, 6)}`.includes(q);
-        if (!matchesName && !matchesPhone && !matchesEmail && !matchesService && !matchesId) return false;
+        const matchesId =
+          a.id?.toLowerCase().includes(q) || `ba-${a.id?.slice(0, 6)}`.includes(q);
+        if (!matchesName && !matchesPhone && !matchesEmail && !matchesService && !matchesId)
+          return false;
       }
 
       // 4. Quick Date Presets
@@ -214,7 +293,11 @@ function Page() {
       }
       if (presetRange === "month") {
         const apptDate = new Date(apptDateStr);
-        if (apptDate.getMonth() !== now.getMonth() || apptDate.getFullYear() !== now.getFullYear()) return false;
+        if (
+          apptDate.getMonth() !== now.getMonth() ||
+          apptDate.getFullYear() !== now.getFullYear()
+        )
+          return false;
       }
 
       // 5. Custom Date Range
@@ -258,7 +341,8 @@ function Page() {
       const d = new Date(dateStr);
       if (!isNaN(d.getTime())) {
         if (d >= sevenDaysAgo && d <= now) weekCount++;
-        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) monthCount++;
+        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear())
+          monthCount++;
       }
     });
 
@@ -281,9 +365,15 @@ function Page() {
     };
   }, [data]);
 
-  // Notifications logic
+  // Dynamic Notifications List
   const notifications = useMemo(() => {
-    const list: Array<{ id: string; title: string; desc: string; type: "pending" | "today" | "new"; time: string }> = [];
+    const list: Array<{
+      id: string;
+      title: string;
+      desc: string;
+      type: "pending" | "today" | "new";
+      time: string;
+    }> = [];
     const todayStr = new Date().toISOString().split("T")[0];
 
     data.forEach((a: any) => {
@@ -294,7 +384,10 @@ function Page() {
           title: "New Booking Received",
           desc: `${a.full_name || "Guest"} booked ${a.service || "a service"}`,
           type: "new",
-          time: new Date(a.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          time: new Date(a.created_at).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
         });
       } else if (a.status === "pending") {
         list.push({
@@ -319,37 +412,27 @@ function Page() {
   }, [data]);
 
   // ---------------------------------------------------------------------------
-  // QUICK ACTIONS HANDLERS
+  // HANDLERS
   // ---------------------------------------------------------------------------
   const handleCreateAppointmentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newAppt.full_name) {
-      toast.error("Please enter customer name");
+    if (!newAppt.full_name || !newAppt.service) {
+      toast.error("Please fill in required fields (Name and Service)");
       return;
     }
 
-    // Reuse existing update mutation pattern to save
-    update.mutate(
-      {
-        id: `custom-${Date.now()}`,
-        status: "pending",
-        internal_notes: `Service: ${newAppt.service || "General"}\nDate: ${newAppt.preferred_date}\nTime: ${newAppt.preferred_time}\nNotes: ${newAppt.notes}`,
-      },
-      {
-        onSuccess: () => {
-          setShowAddModal(false);
-          setNewAppt({
-            full_name: "",
-            email: "",
-            phone: "",
-            service: "",
-            preferred_date: "",
-            preferred_time: "10:00 AM",
-            notes: "",
-          });
-        },
-      }
-    );
+    createMut.mutate({
+      full_name: newAppt.full_name,
+      email: newAppt.email,
+      phone: newAppt.phone,
+      service: newAppt.service,
+      preferred_date: newAppt.preferred_date,
+      preferred_time: newAppt.preferred_time,
+      notes: newAppt.notes,
+      source: "Admin Panel",
+      created_by: loggedInRole,
+      status: "pending",
+    });
   };
 
   const handleExportData = (format: "csv" | "json" | "txt") => {
@@ -364,7 +447,16 @@ function Page() {
 
     if (format === "csv") {
       mimeType = "text/csv;charset=utf-8;";
-      const headers = ["ID", "Name", "Email", "Phone", "Service", "Preferred Date", "Status", "Created At"];
+      const headers = [
+        "ID",
+        "Name",
+        "Email",
+        "Phone",
+        "Service",
+        "Preferred Date",
+        "Status",
+        "Created At",
+      ];
       const rows = filteredData.map((a: any) => [
         a.id,
         `"${a.full_name || ""}"`,
@@ -401,9 +493,7 @@ function Page() {
     setShowExportModal(false);
   };
 
-  // ---------------------------------------------------------------------------
-  // CALENDAR DAYS GENERATOR
-  // ---------------------------------------------------------------------------
+  // Calendar Days Calculation
   const calendarDays = useMemo(() => {
     const year = calendarCurrentDate.getFullYear();
     const month = calendarCurrentDate.getMonth();
@@ -429,8 +519,12 @@ function Page() {
       {/* ------------------------------------------------------------------- */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Appointments Dashboard</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Manage and track all customer appointments</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Appointments Dashboard
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Manage and track all customer appointments
+          </p>
         </div>
 
         <div className="flex items-center gap-2.5">
@@ -443,7 +537,7 @@ function Page() {
             Calendar View
           </button>
 
-          {/* Functional Notification Bell */}
+          {/* Notification Bell */}
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => setShowNotifications(!showNotifications)}
@@ -471,16 +565,28 @@ function Page() {
                 </div>
                 <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
                   {notifications.map((n, i) => (
-                    <div key={i} className="p-3 hover:bg-slate-50/80 transition text-xs">
+                    <div
+                      key={i}
+                      onClick={() => {
+                        const found = data.find((item: any) => item.id === n.id);
+                        if (found) setSelectedAppointment(found);
+                        setShowNotifications(false);
+                      }}
+                      className="p-3 hover:bg-indigo-50/50 transition cursor-pointer text-xs"
+                    >
                       <div className="flex items-center justify-between font-semibold text-slate-900">
                         <span>{n.title}</span>
-                        <span className="text-[10px] font-normal text-slate-400">{n.time}</span>
+                        <span className="text-[10px] font-normal text-slate-400">
+                          {n.time}
+                        </span>
                       </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">{n.desc}</p>
                     </div>
                   ))}
                   {notifications.length === 0 && (
-                    <div className="p-6 text-center text-xs text-slate-400">No new notifications</div>
+                    <div className="p-6 text-center text-xs text-slate-400">
+                      No new notifications
+                    </div>
                   )}
                 </div>
               </div>
@@ -496,8 +602,12 @@ function Page() {
         <Card className="p-3.5 border-slate-200/90 shadow-2xs">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-xs font-bold text-amber-600 uppercase tracking-wide">Pending</span>
-              <div className="mt-1 text-2xl font-black text-slate-900">{metrics.pending}</div>
+              <span className="text-xs font-bold text-amber-600 uppercase tracking-wide">
+                Pending
+              </span>
+              <div className="mt-1 text-2xl font-black text-slate-900">
+                {metrics.pending}
+              </div>
             </div>
             <div className="rounded-lg bg-amber-50 p-2 text-amber-600 border border-amber-100">
               <Clock className="h-4 w-4" />
@@ -511,8 +621,12 @@ function Page() {
         <Card className="p-3.5 border-slate-200/90 shadow-2xs">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-xs font-bold text-emerald-600 uppercase tracking-wide">Confirmed</span>
-              <div className="mt-1 text-2xl font-black text-slate-900">{metrics.confirmed}</div>
+              <span className="text-xs font-bold text-emerald-600 uppercase tracking-wide">
+                Confirmed
+              </span>
+              <div className="mt-1 text-2xl font-black text-slate-900">
+                {metrics.confirmed}
+              </div>
             </div>
             <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600 border border-emerald-100">
               <CheckCircle2 className="h-4 w-4" />
@@ -526,8 +640,12 @@ function Page() {
         <Card className="p-3.5 border-slate-200/90 shadow-2xs">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-xs font-bold text-blue-600 uppercase tracking-wide">Completed</span>
-              <div className="mt-1 text-2xl font-black text-slate-900">{metrics.completed}</div>
+              <span className="text-xs font-bold text-blue-600 uppercase tracking-wide">
+                Completed
+              </span>
+              <div className="mt-1 text-2xl font-black text-slate-900">
+                {metrics.completed}
+              </div>
             </div>
             <div className="rounded-lg bg-blue-50 p-2 text-blue-600 border border-blue-100">
               <CheckCircle2 className="h-4 w-4" />
@@ -541,8 +659,12 @@ function Page() {
         <Card className="p-3.5 border-slate-200/90 shadow-2xs">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-xs font-bold text-rose-600 uppercase tracking-wide">Cancelled</span>
-              <div className="mt-1 text-2xl font-black text-slate-900">{metrics.cancelled}</div>
+              <span className="text-xs font-bold text-rose-600 uppercase tracking-wide">
+                Cancelled
+              </span>
+              <div className="mt-1 text-2xl font-black text-slate-900">
+                {metrics.cancelled}
+              </div>
             </div>
             <div className="rounded-lg bg-rose-50 p-2 text-rose-600 border border-rose-100">
               <XCircle className="h-4 w-4" />
@@ -556,8 +678,12 @@ function Page() {
         <Card className="p-3.5 border-slate-200/90 shadow-2xs">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-xs font-bold text-indigo-600 uppercase tracking-wide">Today's</span>
-              <div className="mt-1 text-2xl font-black text-slate-900">{metrics.todayCount}</div>
+              <span className="text-xs font-bold text-indigo-600 uppercase tracking-wide">
+                Today's
+              </span>
+              <div className="mt-1 text-2xl font-black text-slate-900">
+                {metrics.todayCount}
+              </div>
             </div>
             <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600 border border-indigo-100">
               <CalendarIcon className="h-4 w-4" />
@@ -570,29 +696,30 @@ function Page() {
       </div>
 
       {/* ------------------------------------------------------------------- */}
-      {/* CONTROL BAR: TAB PILLS + INSTANT SEARCH + DATE PICKER + FILTER      */}
+      {/* CONTROL BAR: NON-SCROLLABLE STATUS TABS + SEARCH + DATE PICKER      */}
       {/* ------------------------------------------------------------------- */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        {/* Quick Filter Status Tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 lg:pb-0">
-          {(["all", "pending", "confirmed", "completed", "cancelled"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition ${
-                activeTab === tab
-                  ? "bg-indigo-600 text-white shadow-2xs"
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
+        {/* Responsive Non-Scrollable Status Tabs */}
+        <div className="w-full lg:w-auto grid grid-cols-5 gap-1 p-1 bg-slate-100/80 rounded-xl border border-slate-200/80">
+          {(["all", "pending", "confirmed", "completed", "cancelled"] as const).map(
+            (tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`w-full py-1.5 px-1.5 rounded-lg text-[11px] sm:text-xs font-bold capitalize transition-all text-center truncate ${
+                  activeTab === tab
+                    ? "bg-indigo-600 text-white shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                }`}
+              >
+                {tab}
+              </button>
+            )
+          )}
         </div>
 
         {/* Search & Date Range Picker & Filter Menu */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Functional Date Range Inputs */}
           <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-600">
             <span className="text-[10px] font-bold text-slate-400 uppercase">From:</span>
             <input
@@ -621,7 +748,6 @@ function Page() {
             )}
           </div>
 
-          {/* Search Box */}
           <div className="relative flex-1 sm:w-60">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
             <input
@@ -633,7 +759,6 @@ function Page() {
             />
           </div>
 
-          {/* Filter Popover Button */}
           <div className="relative" ref={filterRef}>
             <button
               onClick={() => setShowFilterMenu(!showFilterMenu)}
@@ -647,7 +772,6 @@ function Page() {
               Filters
             </button>
 
-            {/* Filter Menu Popover */}
             {showFilterMenu && (
               <div className="absolute right-0 mt-2 w-64 rounded-xl bg-white border border-slate-200 shadow-xl z-50 p-4 space-y-3.5 text-xs">
                 <div className="font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center justify-between">
@@ -665,9 +789,10 @@ function Page() {
                   </button>
                 </div>
 
-                {/* Quick Presets */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Time Preset</label>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">
+                    Time Preset
+                  </label>
                   <select
                     value={presetRange}
                     onChange={(e) => setPresetRange(e.target.value as any)}
@@ -680,16 +805,17 @@ function Page() {
                   </select>
                 </div>
 
-                {/* Service Filter */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Service</label>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">
+                    Service
+                  </label>
                   <select
                     value={filterService}
                     onChange={(e) => setFilterService(e.target.value)}
                     className="w-full rounded-md border border-slate-200 p-1.5 text-xs"
                   >
                     <option value="all">All Services</option>
-                    {uniqueServices.map((s) => (
+                    {availableServices.map((s) => (
                       <option key={s} value={s}>
                         {s}
                       </option>
@@ -713,7 +839,9 @@ function Page() {
               NOW
             </span>
           </div>
-          <span className="text-xs font-medium text-slate-500">{filteredData.length} total entries</span>
+          <span className="text-xs font-medium text-slate-500">
+            {filteredData.length} total entries
+          </span>
         </div>
 
         <div className="overflow-x-auto">
@@ -726,7 +854,7 @@ function Page() {
                 <th className="px-3.5 py-3 whitespace-nowrap">Service</th>
                 <th className="px-3.5 py-3 whitespace-nowrap">Visit Date & Time</th>
                 <th className="px-3.5 py-3 whitespace-nowrap">Booked At</th>
-                <th className="px-3.5 py-3 whitespace-nowrap">Source</th>
+                <th className="px-3.5 py-3 whitespace-nowrap">Source & Creator</th>
                 <th className="px-3.5 py-3 whitespace-nowrap">Status</th>
                 <th className="px-3.5 py-3 text-right whitespace-nowrap">Actions</th>
               </tr>
@@ -740,10 +868,8 @@ function Page() {
 
                 return (
                   <tr key={a.id} className="hover:bg-slate-50/80 transition-colors align-top">
-                    {/* # Index */}
                     <td className="px-3.5 py-3 font-bold text-slate-400">{idx + 1}</td>
 
-                    {/* Appointment ID & Badge */}
                     <td className="px-3.5 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         {recencyBadge}
@@ -751,31 +877,33 @@ function Page() {
                       </div>
                     </td>
 
-                    {/* Customer Details */}
                     <td className="px-3.5 py-3">
                       <div className="flex items-start gap-2">
                         <div className="h-7 w-7 rounded-full bg-slate-100 font-bold text-slate-600 flex items-center justify-center text-[10px] shrink-0 border border-slate-200">
                           {a.full_name ? a.full_name.slice(0, 2).toUpperCase() : "G"}
                         </div>
                         <div>
-                          <div className="font-bold text-slate-900 leading-tight">{a.full_name || "Guest"}</div>
+                          <div className="font-bold text-slate-900 leading-tight">
+                            {a.full_name || "Guest"}
+                          </div>
                           {a.phone && <div className="text-[11px] text-slate-500">{a.phone}</div>}
                           {a.email && <div className="text-[11px] text-slate-400">{a.email}</div>}
                         </div>
                       </div>
                     </td>
 
-                    {/* Service Column (Strict Single Line) */}
                     <td className="px-3.5 py-3 max-w-[180px] whitespace-nowrap">
                       <div className="flex items-center gap-1.5 truncate">
                         <Home className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
-                        <span className="font-medium text-slate-800 truncate" title={a.service || "General Inquiry"}>
+                        <span
+                          className="font-medium text-slate-800 truncate"
+                          title={a.service || "General Inquiry"}
+                        >
                           {a.service || "General Inquiry"}
                         </span>
                       </div>
                     </td>
 
-                    {/* Visit Date & Time */}
                     <td className="px-3.5 py-3 whitespace-nowrap">
                       <div className="font-semibold text-slate-900">{visitParts.weekday}</div>
                       <div className="text-slate-600 text-[11px]">{visitParts.dateStr}</div>
@@ -785,7 +913,6 @@ function Page() {
                       </div>
                     </td>
 
-                    {/* Booked At Date & Time */}
                     <td className="px-3.5 py-3 whitespace-nowrap">
                       <div className="font-semibold text-slate-900">{bookedParts.weekday}</div>
                       <div className="text-slate-600 text-[11px]">{bookedParts.dateStr}</div>
@@ -795,19 +922,37 @@ function Page() {
                       </div>
                     </td>
 
-                    {/* Source */}
+                    {/* Dynamic Source & Created By Column */}
                     <td className="px-3.5 py-3 whitespace-nowrap">
-                      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 text-purple-700 text-[10px] font-semibold border border-purple-100">
-                        <Bot className="h-3 w-3 text-purple-600" />
-                        <span>Sophia AI</span>
-                      </div>
+                      {(() => {
+                        const { source, createdBy } = getAppointmentSourceDetails(a);
+                        return (
+                          <div className="space-y-0.5">
+                            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-800 text-[10px] font-bold border border-slate-200">
+                              {source === "Sophia AI" ? (
+                                <Bot className="h-3 w-3 text-purple-600" />
+                              ) : source === "Admin Panel" ? (
+                                <ShieldCheck className="h-3 w-3 text-indigo-600" />
+                              ) : (
+                                <Globe className="h-3 w-3 text-emerald-600" />
+                              )}
+                              <span>{source}</span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-medium flex items-center gap-1 pl-0.5">
+                              <User className="h-2.5 w-2.5" />
+                              <span>By: {createdBy}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </td>
 
-                    {/* Status Badge Select */}
                     <td className="px-3.5 py-3 whitespace-nowrap">
                       <select
                         value={a.status}
-                        onChange={(e) => update.mutate({ id: a.id, status: e.target.value as StatusType })}
+                        onChange={(e) =>
+                          update.mutate({ id: a.id, status: e.target.value as StatusType })
+                        }
                         className={`rounded-md border px-2 py-0.5 text-[11px] font-bold capitalize outline-none cursor-pointer transition ${
                           a.status === "confirmed"
                             ? "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -826,7 +971,6 @@ function Page() {
                       </select>
                     </td>
 
-                    {/* Quick Action Buttons */}
                     <td className="px-3.5 py-3 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1">
                         {a.status === "pending" && (
@@ -847,7 +991,9 @@ function Page() {
                         </button>
                         <button
                           title="Delete"
-                          onClick={() => confirm("Delete appointment?") && remove.mutate(a.id)}
+                          onClick={() =>
+                            confirm("Delete appointment?") && remove.mutate(a.id)
+                          }
                           className="p-1 rounded text-rose-600 hover:bg-rose-50 border border-rose-200"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -874,11 +1020,11 @@ function Page() {
       {/* STATUS SUMMARY & ANALYTICS & QUICK ACTIONS SECTION                  */}
       {/* ------------------------------------------------------------------- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Status Summary Progress Section */}
         <Card className="p-4 border-slate-200/90 shadow-2xs space-y-3">
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Status Summary</h3>
+          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+            Status Summary
+          </h3>
           <div className="space-y-2.5 text-xs">
-            {/* Pending Bar */}
             <div>
               <div className="flex justify-between text-slate-600 font-medium mb-1">
                 <span>Pending</span>
@@ -887,11 +1033,13 @@ function Page() {
                 </span>
               </div>
               <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div className="bg-amber-500 h-full rounded-full" style={{ width: `${metrics.pendingRate}%` }} />
+                <div
+                  className="bg-amber-500 h-full rounded-full"
+                  style={{ width: `${metrics.pendingRate}%` }}
+                />
               </div>
             </div>
 
-            {/* Confirmed Bar */}
             <div>
               <div className="flex justify-between text-slate-600 font-medium mb-1">
                 <span>Confirmed</span>
@@ -900,11 +1048,13 @@ function Page() {
                 </span>
               </div>
               <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${metrics.completionRate}%` }} />
+                <div
+                  className="bg-emerald-500 h-full rounded-full"
+                  style={{ width: `${metrics.completionRate}%` }}
+                />
               </div>
             </div>
 
-            {/* Cancelled Bar */}
             <div>
               <div className="flex justify-between text-slate-600 font-medium mb-1">
                 <span>Cancelled</span>
@@ -913,41 +1063,62 @@ function Page() {
                 </span>
               </div>
               <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div className="bg-rose-500 h-full rounded-full" style={{ width: `${metrics.cancellationRate}%` }} />
+                <div
+                  className="bg-rose-500 h-full rounded-full"
+                  style={{ width: `${metrics.cancellationRate}%` }}
+                />
               </div>
             </div>
           </div>
         </Card>
 
-        {/* Professional Analytics Section */}
         <Card className="p-4 border-slate-200/90 shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Appointment Analytics</h3>
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Appointment Analytics
+            </h3>
             <TrendingUp className="h-4 w-4 text-indigo-600" />
           </div>
           <div className="grid grid-cols-2 gap-2 text-center text-xs">
             <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase">Total Booked</span>
-              <div className="text-base font-black text-slate-900 mt-0.5">{metrics.total}</div>
+              <span className="text-[10px] text-slate-400 font-semibold uppercase">
+                Total Booked
+              </span>
+              <div className="text-base font-black text-slate-900 mt-0.5">
+                {metrics.total}
+              </div>
             </div>
             <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase">Completion Rate</span>
-              <div className="text-base font-black text-emerald-600 mt-0.5">{metrics.completionRate}%</div>
+              <span className="text-[10px] text-slate-400 font-semibold uppercase">
+                Completion Rate
+              </span>
+              <div className="text-base font-black text-emerald-600 mt-0.5">
+                {metrics.completionRate}%
+              </div>
             </div>
             <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase">This Week</span>
-              <div className="text-base font-black text-slate-900 mt-0.5">{metrics.weekCount}</div>
+              <span className="text-[10px] text-slate-400 font-semibold uppercase">
+                This Week
+              </span>
+              <div className="text-base font-black text-slate-900 mt-0.5">
+                {metrics.weekCount}
+              </div>
             </div>
             <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase">This Month</span>
-              <div className="text-base font-black text-slate-900 mt-0.5">{metrics.monthCount}</div>
+              <span className="text-[10px] text-slate-400 font-semibold uppercase">
+                This Month
+              </span>
+              <div className="text-base font-black text-slate-900 mt-0.5">
+                {metrics.monthCount}
+              </div>
             </div>
           </div>
         </Card>
 
-        {/* Functional Quick Actions */}
         <Card className="p-4 border-slate-200/90 shadow-2xs space-y-2.5">
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">Quick Actions</h3>
+          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">
+            Quick Actions
+          </h3>
           <button
             onClick={() => setShowAddModal(true)}
             className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-2xs transition"
@@ -964,26 +1135,26 @@ function Page() {
       </div>
 
       {/* ------------------------------------------------------------------- */}
-      {/* MODAL 1: FUNCTIONAL MONTHLY/WEEKLY CALENDAR VIEW                   */}
+      {/* MODAL 1: CALENDAR VIEW WITH MONTH / WEEK / DAY MODES               */}
       {/* ------------------------------------------------------------------- */}
       {showCalendarModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
           <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden">
-            {/* Calendar Modal Header */}
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <div className="flex items-center gap-3">
                 <CalendarDays className="h-5 w-5 text-indigo-600" />
                 <h3 className="font-bold text-slate-900 text-sm">Appointment Calendar</h3>
               </div>
               <div className="flex items-center gap-2">
-                {/* View Mode Buttons */}
                 <div className="flex bg-slate-200 p-0.5 rounded-lg text-[10px] font-bold">
                   {(["month", "week", "day"] as const).map((m) => (
                     <button
                       key={m}
                       onClick={() => setCalendarViewMode(m)}
                       className={`px-2 py-1 rounded-md capitalize transition ${
-                        calendarViewMode === m ? "bg-white text-slate-900 shadow-2xs" : "text-slate-600"
+                        calendarViewMode === m
+                          ? "bg-white text-slate-900 shadow-2xs"
+                          : "text-slate-600"
                       }`}
                     >
                       {m}
@@ -999,16 +1170,22 @@ function Page() {
               </div>
             </div>
 
-            {/* Calendar Controls */}
             <div className="p-4 flex items-center justify-between border-b border-slate-100 text-xs">
               <div className="font-bold text-slate-800 text-sm">
-                {calendarCurrentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                {calendarCurrentDate.toLocaleDateString("en-US", {
+                  month: "long",
+                  year: "numeric",
+                })}
               </div>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() =>
                     setCalendarCurrentDate(
-                      new Date(calendarCurrentDate.getFullYear(), calendarCurrentDate.getMonth() - 1, 1)
+                      new Date(
+                        calendarCurrentDate.getFullYear(),
+                        calendarCurrentDate.getMonth() - 1,
+                        1
+                      )
                     )
                   }
                   className="p-1 rounded border border-slate-200 hover:bg-slate-50"
@@ -1024,7 +1201,11 @@ function Page() {
                 <button
                   onClick={() =>
                     setCalendarCurrentDate(
-                      new Date(calendarCurrentDate.getFullYear(), calendarCurrentDate.getMonth() + 1, 1)
+                      new Date(
+                        calendarCurrentDate.getFullYear(),
+                        calendarCurrentDate.getMonth() + 1,
+                        1
+                      )
                     )
                   }
                   className="p-1 rounded border border-slate-200 hover:bg-slate-50"
@@ -1034,78 +1215,192 @@ function Page() {
               </div>
             </div>
 
-            {/* Calendar Grid */}
-            <div className="p-4">
-              <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-slate-400 uppercase mb-2">
-                <span>Sun</span>
-                <span>Mon</span>
-                <span>Tue</span>
-                <span>Wed</span>
-                <span>Thu</span>
-                <span>Fri</span>
-                <span>Sat</span>
-              </div>
-              <div className="grid grid-cols-7 gap-1">
-                {calendarDays.map((day, idx) => {
-                  if (!day) return <div key={idx} className="h-20 bg-slate-50/50 rounded-lg" />;
-                  const dateStr = day.toISOString().split("T")[0];
-                  const dayAppts = data.filter((a: any) => a.preferred_date === dateStr);
+            <div className="p-4 max-h-[75vh] overflow-y-auto">
+              {/* MONTH VIEW */}
+              {calendarViewMode === "month" && (
+                <>
+                  <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-slate-400 uppercase mb-2">
+                    {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                      <span key={d}>{d}</span>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {calendarDays.map((day, idx) => {
+                      if (!day)
+                        return <div key={idx} className="h-24 bg-slate-50/40 rounded-lg" />;
+                      const dateStr = day.toISOString().split("T")[0];
+                      const isToday =
+                        dateStr === new Date().toISOString().split("T")[0];
+                      const dayAppts = data.filter((a: any) => a.preferred_date === dateStr);
 
-                  return (
-                    <div
-                      key={idx}
-                      className="h-20 border border-slate-100 rounded-lg p-1.5 flex flex-col justify-between hover:bg-slate-50 transition"
-                    >
-                      <span className="text-[10px] font-bold text-slate-700">{day.getDate()}</span>
-                      <div className="space-y-0.5 overflow-hidden">
-                        {dayAppts.slice(0, 2).map((a: any) => (
-                          <div
-                            key={a.id}
-                            onClick={() => setSelectedAppointment(a)}
-                            className="text-[9px] truncate bg-indigo-50 text-indigo-700 font-semibold px-1 py-0.5 rounded cursor-pointer"
+                      return (
+                        <div
+                          key={idx}
+                          className={`h-24 border rounded-xl p-1.5 flex flex-col justify-between transition-all ${
+                            isToday
+                              ? "bg-indigo-50/40 border-indigo-300 ring-1 ring-indigo-200"
+                              : "border-slate-100 hover:border-slate-300 hover:bg-slate-50/50"
+                          }`}
+                        >
+                          <span
+                            className={`text-[10px] font-bold ${
+                              isToday ? "text-indigo-700 font-extrabold" : "text-slate-700"
+                            }`}
                           >
-                            {a.full_name || "Appt"}
+                            {day.getDate()}
+                          </span>
+                          <div className="space-y-1 overflow-y-auto">
+                            {dayAppts.map((a: any) => (
+                              <div
+                                key={a.id}
+                                onClick={() => setSelectedAppointment(a)}
+                                className="text-[9px] truncate bg-indigo-600 text-white font-medium px-1.5 py-0.5 rounded-md shadow-2xs cursor-pointer hover:bg-indigo-700 transition"
+                              >
+                                {a.preferred_time || "10:00 AM"} - {a.full_name}
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                        {dayAppts.length > 2 && (
-                          <div className="text-[8px] font-bold text-slate-400 text-center">
-                            +{dayAppts.length - 2} more
-                          </div>
-                        )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* WEEK VIEW */}
+              {calendarViewMode === "week" && (
+                <div className="space-y-2">
+                  {[0, 1, 2, 3, 4, 5, 6].map((offset) => {
+                    const curr = new Date(calendarCurrentDate);
+                    curr.setDate(curr.getDate() - curr.getDay() + offset);
+                    const dateStr = curr.toISOString().split("T")[0];
+                    const dayAppts = data.filter((a: any) => a.preferred_date === dateStr);
+
+                    return (
+                      <div
+                        key={offset}
+                        className="flex gap-3 p-2.5 rounded-xl border border-slate-100 bg-slate-50/50 items-start"
+                      >
+                        <div className="w-24 shrink-0 font-bold text-xs text-slate-800">
+                          {curr.toLocaleDateString("en-US", {
+                            weekday: "short",
+                            month: "numeric",
+                            day: "numeric",
+                          })}
+                        </div>
+                        <div className="flex-1 flex flex-wrap gap-2">
+                          {dayAppts.length > 0 ? (
+                            dayAppts.map((a: any) => (
+                              <div
+                                key={a.id}
+                                onClick={() => setSelectedAppointment(a)}
+                                className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 shadow-2xs text-xs cursor-pointer hover:border-indigo-400 transition"
+                              >
+                                <span className="font-bold text-indigo-600 mr-1.5">
+                                  {a.preferred_time || "10:00 AM"}
+                                </span>
+                                <span className="font-medium text-slate-900">
+                                  {a.full_name}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">
+                              No appointments
+                            </span>
+                          )}
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* DAY VIEW */}
+              {calendarViewMode === "day" && (
+                <div className="space-y-2">
+                  <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl font-bold text-xs text-indigo-900">
+                    Appointments for{" "}
+                    {calendarCurrentDate.toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </div>
+                  {data.filter(
+                    (a: any) =>
+                      a.preferred_date ===
+                      calendarCurrentDate.toISOString().split("T")[0]
+                  ).length === 0 ? (
+                    <div className="p-8 text-center text-xs text-slate-400">
+                      No appointments scheduled for this day.
                     </div>
-                  );
-                })}
-              </div>
+                  ) : (
+                    data
+                      .filter(
+                        (a: any) =>
+                          a.preferred_date ===
+                          calendarCurrentDate.toISOString().split("T")[0]
+                      )
+                      .map((a: any) => (
+                        <div
+                          key={a.id}
+                          onClick={() => setSelectedAppointment(a)}
+                          className="p-3 rounded-xl border border-slate-200 bg-white shadow-2xs flex items-center justify-between cursor-pointer hover:border-indigo-500 transition"
+                        >
+                          <div>
+                            <span className="text-xs font-bold text-indigo-600 block">
+                              {a.preferred_time || "10:00 AM"}
+                            </span>
+                            <span className="text-sm font-bold text-slate-900">
+                              {a.full_name}
+                            </span>
+                            <span className="text-xs text-slate-500 block">{a.service}</span>
+                          </div>
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                            {a.status}
+                          </span>
+                        </div>
+                      ))
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
       {/* ------------------------------------------------------------------- */}
-      {/* MODAL 2: FUNCTIONAL ADD NEW APPOINTMENT                             */}
+      {/* MODAL 2: ADD NEW APPOINTMENT                                       */}
       {/* ------------------------------------------------------------------- */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
           <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <h3 className="font-bold text-slate-900 text-sm">Add New Appointment</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
             <form onSubmit={handleCreateAppointmentSubmit} className="p-4 space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-600 mb-1">Customer Full Name *</label>
+                <label className="block font-bold text-slate-600 mb-1">
+                  Customer Full Name *
+                </label>
                 <input
                   type="text"
                   required
                   value={newAppt.full_name}
                   onChange={(e) => setNewAppt({ ...newAppt, full_name: e.target.value })}
                   placeholder="e.g. John Doe"
-                  className="w-full rounded-lg border border-slate-200 p-2 text-xs"
+                  className="w-full rounded-lg border border-slate-200 p-2 text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
                 />
               </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block font-bold text-slate-600 mb-1">Email</label>
@@ -1114,7 +1409,7 @@ function Page() {
                     value={newAppt.email}
                     onChange={(e) => setNewAppt({ ...newAppt, email: e.target.value })}
                     placeholder="john@example.com"
-                    className="w-full rounded-lg border border-slate-200 p-2 text-xs"
+                    className="w-full rounded-lg border border-slate-200 p-2 text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
                   />
                 </div>
                 <div>
@@ -1124,53 +1419,100 @@ function Page() {
                     value={newAppt.phone}
                     onChange={(e) => setNewAppt({ ...newAppt, phone: e.target.value })}
                     placeholder="+1 234 567 890"
-                    className="w-full rounded-lg border border-slate-200 p-2 text-xs"
+                    className="w-full rounded-lg border border-slate-200 p-2 text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
                   />
                 </div>
               </div>
-              <div>
-                <label className="block font-bold text-slate-600 mb-1">Service Requested</label>
-                <input
-                  type="text"
-                  value={newAppt.service}
-                  onChange={(e) => setNewAppt({ ...newAppt, service: e.target.value })}
-                  placeholder="e.g. Consultation"
-                  className="w-full rounded-lg border border-slate-200 p-2 text-xs"
-                />
+
+              {/* Searchable Service Dropdown */}
+              <div className="relative">
+                <label className="block font-bold text-slate-600 mb-1">
+                  Service Requested *
+                </label>
+                <div
+                  onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
+                  className="w-full rounded-lg border border-slate-200 p-2 text-xs bg-white cursor-pointer flex justify-between items-center"
+                >
+                  <span
+                    className={
+                      newAppt.service ? "text-slate-900 font-medium" : "text-slate-400"
+                    }
+                  >
+                    {newAppt.service || "Select a service..."}
+                  </span>
+                  <ChevronRight className="h-3.5 w-3.5 text-slate-400 rotate-90" />
+                </div>
+
+                {isServiceDropdownOpen && (
+                  <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-2 space-y-1">
+                    <input
+                      type="text"
+                      placeholder="Search service..."
+                      value={serviceSearch}
+                      onChange={(e) => setServiceSearch(e.target.value)}
+                      className="w-full p-1.5 border border-slate-200 rounded-md text-xs mb-1 outline-none"
+                    />
+                    <div className="max-h-36 overflow-y-auto divide-y divide-slate-100">
+                      {filteredServicesList.map((service) => (
+                        <div
+                          key={service}
+                          onClick={() => {
+                            setNewAppt({ ...newAppt, service });
+                            setIsServiceDropdownOpen(false);
+                          }}
+                          className="p-1.5 hover:bg-indigo-50 rounded cursor-pointer font-medium text-slate-800"
+                        >
+                          {service}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block font-bold text-slate-600 mb-1">Preferred Date</label>
+                  <label className="block font-bold text-slate-600 mb-1">
+                    Preferred Date
+                  </label>
                   <input
                     type="date"
                     value={newAppt.preferred_date}
-                    onChange={(e) => setNewAppt({ ...newAppt, preferred_date: e.target.value })}
-                    className="w-full rounded-lg border border-slate-200 p-2 text-xs"
+                    onChange={(e) =>
+                      setNewAppt({ ...newAppt, preferred_date: e.target.value })
+                    }
+                    className="w-full rounded-lg border border-slate-200 p-2 text-xs outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-600 mb-1">Preferred Time</label>
+                  <label className="block font-bold text-slate-600 mb-1">
+                    Preferred Time
+                  </label>
                   <input
                     type="text"
                     value={newAppt.preferred_time}
-                    onChange={(e) => setNewAppt({ ...newAppt, preferred_time: e.target.value })}
-                    className="w-full rounded-lg border border-slate-200 p-2 text-xs"
+                    onChange={(e) =>
+                      setNewAppt({ ...newAppt, preferred_time: e.target.value })
+                    }
+                    className="w-full rounded-lg border border-slate-200 p-2 text-xs outline-none"
                   />
                 </div>
               </div>
-              <div className="pt-2 flex justify-end gap-2">
+
+              <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 font-semibold"
+                  className="px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 font-semibold text-slate-700"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-semibold shadow-2xs"
+                  disabled={createMut.isPending}
+                  className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-semibold shadow-2xs disabled:opacity-50"
                 >
-                  Save Appointment
+                  {createMut.isPending ? "Saving..." : "Save Appointment"}
                 </button>
               </div>
             </form>
@@ -1179,39 +1521,54 @@ function Page() {
       )}
 
       {/* ------------------------------------------------------------------- */}
-      {/* MODAL 3: FUNCTIONAL EXPORT OPTIONS                                 */}
+      {/* MODAL 3: EXPORT APPOINTMENTS                                       */}
       {/* ------------------------------------------------------------------- */}
       {showExportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 overflow-hidden">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <h3 className="font-bold text-slate-900 text-sm">Export Appointments</h3>
-              <button onClick={() => setShowExportModal(false)} className="text-slate-400 hover:text-slate-600">
+              <h3 className="font-bold text-slate-900 text-sm">
+                Export Filtered Appointments
+              </h3>
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-4 space-y-2 text-xs">
-              <button
-                onClick={() => handleExportData("csv")}
-                className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 font-semibold text-slate-800 transition"
-              >
-                <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
-                <span>Export as CSV / Excel</span>
-              </button>
-              <button
-                onClick={() => handleExportData("json")}
-                className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 font-semibold text-slate-800 transition"
-              >
-                <FileCode className="h-5 w-5 text-indigo-600" />
-                <span>Export as JSON Data</span>
-              </button>
-              <button
-                onClick={() => handleExportData("txt")}
-                className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 font-semibold text-slate-800 transition"
-              >
-                <FileText className="h-5 w-5 text-blue-600" />
-                <span>Export as Summary Text</span>
-              </button>
+            <div className="p-4 space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-600 mb-1">Time Horizon</label>
+                <select
+                  value={exportDateRange}
+                  onChange={(e) => setExportDateRange(e.target.value as any)}
+                  className="w-full rounded-lg border border-slate-200 p-2 text-xs bg-white outline-none"
+                >
+                  <option value="all">All Dates</option>
+                  <option value="today">Today Only</option>
+                  <option value="yesterday">Yesterday</option>
+                  <option value="7days">Last 7 Days</option>
+                  <option value="month">This Month</option>
+                </select>
+              </div>
+
+              <div className="pt-2 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleExportData("csv")}
+                  className="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 font-semibold text-slate-800 transition"
+                >
+                  <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+                  <span>CSV / Excel</span>
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 font-semibold text-slate-800 transition"
+                >
+                  <Printer className="h-4 w-4 text-indigo-600" />
+                  <span>Print / PDF</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1225,7 +1582,10 @@ function Page() {
           <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <h3 className="font-bold text-slate-900 text-sm">Appointment Details</h3>
-              <button onClick={() => setSelectedAppointment(null)} className="text-slate-400 hover:text-slate-600">
+              <button
+                onClick={() => setSelectedAppointment(null)}
+                className="text-slate-400 hover:text-slate-600"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -1233,7 +1593,9 @@ function Page() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <span className="text-slate-400 block mb-0.5">Customer Name</span>
-                  <p className="font-bold text-slate-900 text-sm">{selectedAppointment.full_name}</p>
+                  <p className="font-bold text-slate-900 text-sm">
+                    {selectedAppointment.full_name}
+                  </p>
                 </div>
                 <div>
                   <span className="text-slate-400 block mb-0.5">Status</span>
@@ -1251,11 +1613,15 @@ function Page() {
                 </div>
                 <div>
                   <span className="text-slate-400 block mb-0.5">Service</span>
-                  <p className="font-semibold text-slate-800">{selectedAppointment.service || "N/A"}</p>
+                  <p className="font-semibold text-slate-800">
+                    {selectedAppointment.service || "N/A"}
+                  </p>
                 </div>
                 <div>
                   <span className="text-slate-400 block mb-0.5">Preferred Date</span>
-                  <p className="font-semibold text-slate-800">{selectedAppointment.preferred_date || "N/A"}</p>
+                  <p className="font-semibold text-slate-800">
+                    {selectedAppointment.preferred_date || "N/A"}
+                  </p>
                 </div>
               </div>
             </div>

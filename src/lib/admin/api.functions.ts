@@ -109,17 +109,6 @@ const AppointmentPatch = z.object({
   internal_notes: z.string().max(4000).nullable().optional(),
 });
 
-const AppointmentCreateSchema = z.object({
-  full_name: z.string().min(1).max(120),
-  email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().max(40).optional().or(z.literal("")),
-  service: z.string().max(120).optional().or(z.literal("")),
-  appointment_date: z.string(),
-  status: z.enum(["pending", "confirmed", "completed", "cancelled"]).default("pending"),
-  assigned_to: z.string().uuid().nullable().optional(),
-  internal_notes: z.string().max(4000).optional().or(z.literal("")),
-});
-
 export const listAppointments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -130,20 +119,6 @@ export const listAppointments = createServerFn({ method: "GET" })
       .limit(500);
     if (error) throw new Error(error.message);
     return data ?? [];
-  });
-
-export const createAppointment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => AppointmentCreateSchema.parse(d))
-  .handler(async ({ data, context }) => {
-    const { data: row, error } = await context.supabase
-      .from("appointments")
-      .insert(data)
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    await logAudit(context.supabase, context.userId, "create_appointment", "appointment", row.id);
-    return row;
   });
 
 export const updateAppointment = createServerFn({ method: "POST" })

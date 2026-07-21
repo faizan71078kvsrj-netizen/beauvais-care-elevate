@@ -10,7 +10,14 @@ import { sophiaChat } from "@/lib/sophia.functions";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
+type VisitorState = {
+  name?: string;
+  email?: string;
+  phone?: string;
+};
+
 const STORAGE_KEY = "sophia_session_v1";
+const VISITOR_KEY = "sophia_visitor_v1";
 const GREETING =
   "Hi! I'm Sophia, your Beauvais Care Assistant. How can I help you today — services, a tour, or booking an appointment?";
 
@@ -25,6 +32,7 @@ export function SophiaChat() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
+  const [visitor, setVisitor] = useState<VisitorState>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const chat = useServerFn(sophiaChat);
 
@@ -36,7 +44,22 @@ export function SophiaChat() {
       window.localStorage.setItem(STORAGE_KEY, id);
     }
     setSessionId(id);
+
+    try {
+      const savedVisitor = window.localStorage.getItem(VISITOR_KEY);
+      if (savedVisitor) {
+        setVisitor(JSON.parse(savedVisitor));
+      }
+    } catch {
+      // Ignore JSON parse error
+    }
   }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && Object.keys(visitor).length > 0) {
+      window.localStorage.setItem(VISITOR_KEY, JSON.stringify(visitor));
+    }
+  }, [visitor]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -47,9 +70,50 @@ export function SophiaChat() {
     [messages],
   );
 
+  const updateVisitorFromInput = (text: string) => {
+    const updated = { ...visitor };
+    let changed = false;
+
+    // Capture basic email pattern without explicit regex logic modifications
+    if (!updated.email && text.includes("@") && text.includes(".")) {
+      const parts = text.split(/\s+/);
+      const foundEmail = parts.find((p) => p.includes("@") && p.includes("."));
+      if (foundEmail) {
+        updated.email = foundEmail.replace(/[,;]/g, "").trim();
+        changed = true;
+      }
+    }
+
+    // Capture basic phone string if digits exist
+    const digitCount = (text.match(/\d/g) || []).length;
+    if (!updated.phone && digitCount >= 7 && digitCount <= 15) {
+      updated.phone = text.trim();
+      changed = true;
+    }
+
+    // Capture name if introduced
+    const lower = text.toLowerCase();
+    if (!updated.name && (lower.includes("name is") || lower.includes("i am") || lower.includes("i'm"))) {
+      updated.name = text.trim();
+      changed = true;
+    } else if (!updated.name && !text.includes("@") && digitCount < 5 && text.split(" ").length <= 3) {
+      // Fallback single line name entry
+      updated.name = text.trim();
+      changed = true;
+    }
+
+    if (changed) {
+      setVisitor(updated);
+    }
+    return updated;
+  };
+
   const send = async () => {
     const text = input.trim();
     if (!text || busy || !sessionId) return;
+
+    const currentVisitor = updateVisitorFromInput(text);
+
     setInput("");
     setMessages((m) => [...m, { role: "user", content: text }]);
     setBusy(true);
@@ -60,20 +124,19 @@ export function SophiaChat() {
       history: historyForModel,
       page_url: typeof window !== "undefined" ? window.location.href : undefined,
       user_agent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+      visitor: Object.keys(currentVisitor).length > 0 ? currentVisitor : undefined,
     };
 
-    console.log("--> [1] [BEFORE] Dispatching SophiaChat request payload:", JSON.stringify(payload, null, 2));
+    console.log("Sending SophiaChat request payload with visitor:", payload);
 
     try {
       const res = await chat({
         data: payload,
       });
 
-      console.log("<-- [1] [AFTER] Received response from sophiaChat RPC call:", JSON.stringify(res, null, 2));
-
       setMessages((m) => [...m, { role: "assistant", content: res.reply }]);
     } catch (err: any) {
-      console.error("[7] [LOGGED ERROR] Exception caught in frontend SophiaChat send():", err?.stack || err);
+      console.error("Exception caught in frontend SophiaChat send():", err?.stack || err);
       setMessages((m) => [
         ...m,
         {

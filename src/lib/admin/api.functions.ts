@@ -102,12 +102,34 @@ export const bootstrapSuperAdmin = createServerFn({ method: "POST" })
 
 // ---------- Appointments ----------------------------------------------------
 
+const CreateAppointmentSchema = z.object({
+  user_id: z.string().uuid().optional(),
+  full_name: z.string().min(1).max(120).optional(),
+  email: z.string().email().optional().or(z.literal("")),
+  phone: z.string().max(40).optional().or(z.literal("")),
+  service: z.string().max(120).optional().or(z.literal("")),
+  scheduled_at: z.string().datetime().optional().or(z.string().min(1)),
+  status: z.enum(["pending", "confirmed", "completed", "cancelled"]).default("pending"),
+  assigned_to: z.string().uuid().nullable().optional(),
+  internal_notes: z.string().max(4000).nullable().optional(),
+});
+
 const AppointmentPatch = z.object({
   id: z.string().uuid(),
   status: z.enum(["pending", "confirmed", "completed", "cancelled"]).optional(),
   assigned_to: z.string().uuid().nullable().optional(),
   internal_notes: z.string().max(4000).nullable().optional(),
 });
+
+export const createAppointment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => CreateAppointmentSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase.from("appointments").insert(data).select().single();
+    if (error) throw new Error(error.message);
+    await logAudit(context.supabase, context.userId, "create_appointment", "appointment", row.id);
+    return row;
+  });
 
 export const listAppointments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

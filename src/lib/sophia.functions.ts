@@ -249,22 +249,19 @@ export const sophiaChat = createServerFn({ method: "POST" })
     const hasIntent = detectAppointmentIntent(data.message);
     if (hasIntent && data.visitor?.name) {
       try {
-        const { error: apptError } = await supabaseAdmin.from("appointments").insert({
-          full_name: data.visitor.name,
-          email: data.visitor.email || null,
-          phone: data.visitor.phone || null,
-          service: "Care Home Tour",
-          preferred_date: null,
-          message: data.message,
-          source: "sophia_chat",
+        const apptResult = await submitAppointment({
+          data: {
+            name: data.visitor.name,
+            email: data.visitor.email || "",
+            phone: data.visitor.phone || "",
+            service: "Care Home Tour",
+            date: new Date().toISOString().split("T")[0],
+            message: data.message
+          }
         });
-        if (apptError) {
-          console.error("APPOINTMENT INSERT ERROR:", JSON.stringify(apptError, null, 2));
-        } else {
-          console.log("APPOINTMENT INSERT SUCCESS");
-        }
+        console.log("SUBMIT APPOINTMENT RESULT:", JSON.stringify(apptResult, null, 2));
       } catch (e) {
-        console.error("Appointment Error:", e);
+        console.error("Appointment Error using submitAppointment():", e);
       }
 
       try {

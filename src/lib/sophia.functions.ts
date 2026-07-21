@@ -115,7 +115,7 @@ function cleanPhone(rawPhone?: string): string {
   if (phoneMatch) {
     return phoneMatch[0].trim();
   }
-  return rawPhone.replace(/[^\d+]/g, "").trim();
+  return "";
 }
 
 function cleanEmail(rawEmail?: string): string {
@@ -131,8 +131,12 @@ function extractVisitorInfo(message: string, history: ChatTurn[], visitorObj?: {
   console.log("[LOG 2] extractVisitorInfo() visitor object:", JSON.stringify(visitorObj));
 
   const parsedName = cleanName(visitorObj?.name);
-  const parsedPhone = cleanPhone(visitorObj?.phone);
   const parsedEmail = cleanEmail(visitorObj?.email);
+
+  const parsedPhone =
+    cleanPhone(visitorObj?.phone) ||
+    cleanPhone(visitorObj?.name) ||
+    cleanPhone(message);
 
   return {
     name: parsedName || "Sophia Chat Visitor",

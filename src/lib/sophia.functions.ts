@@ -98,13 +98,46 @@ function detectAppointmentIntent(text: string): boolean {
   return hasIntent;
 }
 
+function cleanName(rawName?: string): string {
+  if (!rawName) return "";
+  let name = rawName;
+  const nameMatch = name.match(/(?:my name is|i am|i'm)\s+([A-Za-z\s]+)/i);
+  if (nameMatch && nameMatch[1]) {
+    name = nameMatch[1];
+  }
+  name = name.split(/\n|\.|,| My | Phone | Email /i)[0];
+  return name.replace(/[^\w\s]/gi, "").trim();
+}
+
+function cleanPhone(rawPhone?: string): string {
+  if (!rawPhone) return "";
+  const phoneMatch = rawPhone.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\b\d{7,15}\b/);
+  if (phoneMatch) {
+    return phoneMatch[0].trim();
+  }
+  return rawPhone.replace(/[^\d+]/g, "").trim();
+}
+
+function cleanEmail(rawEmail?: string): string {
+  if (!rawEmail) return "";
+  const emailMatch = rawEmail.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  if (emailMatch) {
+    return emailMatch[0].trim();
+  }
+  return rawEmail.replace(/[.,;]+$/, "").trim();
+}
+
 function extractVisitorInfo(message: string, history: ChatTurn[], visitorObj?: { name?: string; email?: string; phone?: string }) {
   console.log("[LOG 2] extractVisitorInfo() visitor object:", JSON.stringify(visitorObj));
 
+  const parsedName = cleanName(visitorObj?.name);
+  const parsedPhone = cleanPhone(visitorObj?.phone);
+  const parsedEmail = cleanEmail(visitorObj?.email);
+
   return {
-    name: visitorObj?.name || "",
-    email: visitorObj?.email || "",
-    phone: visitorObj?.phone || "",
+    name: parsedName || "Sophia Chat Visitor",
+    email: parsedEmail,
+    phone: parsedPhone,
   };
 }
 
@@ -266,7 +299,7 @@ export const sophiaChat = createServerFn({ method: "POST" })
 
         const appointmentPayload = {
           data: {
-            name: visitorInfo.name || "Sophia Chat Visitor",
+            name: visitorInfo.name,
             email: visitorInfo.email,
             phone: visitorInfo.phone,
             service: "Care Home Tour",
@@ -286,19 +319,17 @@ export const sophiaChat = createServerFn({ method: "POST" })
         }
 
         console.log("[LOG 6] Immediately before lead insert. Target data:", {
-          full_name: visitorInfo.name || "Sophia Chat Visitor",
+          full_name: visitorInfo.name,
           email: visitorInfo.email || null,
           phone: visitorInfo.phone || null,
-          message: data.message,
           source: "sophia_chat",
         });
 
         try {
           const { data: leadResult, error: leadError } = await supabaseAdmin.from("leads").insert({
-            full_name: visitorInfo.name || "Sophia Chat Visitor",
+            full_name: visitorInfo.name,
             email: visitorInfo.email || null,
             phone: visitorInfo.phone || null,
-            message: data.message,
             source: "sophia_chat",
           }).select();
 

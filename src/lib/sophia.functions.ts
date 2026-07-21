@@ -88,18 +88,18 @@ const OUT_OF_CREDIT_MESSAGE =
   "Our AI assistant is temporarily unavailable due to high demand. Please try again shortly, contact us through WhatsApp, or call our office for immediate assistance.";
 
 function detectAppointmentIntent(text: string): boolean {
-  console.log("detectAppointmentIntent() checking text:", text);
+  console.log("[LOG 1a] detectAppointmentIntent() checking text:", text);
   const t = text.toLowerCase();
   const hasIntent = (
     /\b(book|schedule|appointment|reserve|tour|visit)\b/.test(t) ||
     /\b(availability|available)\b/.test(t)
   );
-  console.log("detectAppointmentIntent() result:", hasIntent);
+  console.log("[LOG 1b] detectAppointmentIntent() calculated result:", hasIntent);
   return hasIntent;
 }
 
 function extractVisitorInfo(message: string, history: ChatTurn[], visitorObj?: { name?: string; email?: string; phone?: string }) {
-  console.log("extractVisitorInfo() utilizing visitor object:", visitorObj);
+  console.log("[LOG 2] extractVisitorInfo() visitor object:", JSON.stringify(visitorObj));
 
   return {
     name: visitorObj?.name || "",
@@ -166,7 +166,9 @@ async function callGemini(opts: {
 export const sophiaChat = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ChatInput.parse(d))
   .handler(async ({ data }) => {
-    console.log("sophiaChat handler received visitor data:", data.visitor);
+    console.log("--------------------------------------------------");
+    console.log("[LOG] sophiaChat handler invoked");
+    console.log("[LOG 2] data.visitor received on server:", JSON.stringify(data.visitor));
 
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -191,10 +193,10 @@ export const sophiaChat = createServerFn({ method: "POST" })
           content: data.message,
         });
         if (userInsertErr) {
-          console.error("Error inserting user chat message:", userInsertErr);
+          console.error("[CATCH LOG] Error inserting user chat message:", userInsertErr);
         }
       } catch (insertCatchErr: any) {
-        console.error("Exception inserting user chat message:", insertCatchErr?.stack || insertCatchErr);
+        console.error("[CATCH LOG] Exception inserting user chat message:", insertCatchErr?.stack || insertCatchErr);
       }
 
       // Build system prompt with cached knowledge
@@ -217,7 +219,7 @@ export const sophiaChat = createServerFn({ method: "POST" })
           visitor: data.visitor,
         });
       } catch (err: any) {
-        console.error("Gemini Call Failed:", err?.stack || err);
+        console.error("[CATCH LOG] Gemini Call Failed stack:", err?.stack || err);
         try {
           await supabaseAdmin.from("ai_errors").insert({
             session_id: data.session_id,
@@ -226,7 +228,7 @@ export const sophiaChat = createServerFn({ method: "POST" })
             metadata: { status: err?.status ?? null, model },
           });
         } catch (logErr: any) {
-          console.error("Failed to log AI error to database:", logErr?.stack || logErr);
+          console.error("[CATCH LOG] Failed to log AI error to database:", logErr?.stack || logErr);
         }
         return { reply: OUT_OF_CREDIT_MESSAGE, error: true };
       }
@@ -241,20 +243,25 @@ export const sophiaChat = createServerFn({ method: "POST" })
           content: reply,
         });
         if (assistantInsertErr) {
-          console.error("Error inserting assistant chat message:", assistantInsertErr);
+          console.error("[CATCH LOG] Error inserting assistant chat message:", assistantInsertErr);
         }
       } catch (insertCatchErr: any) {
-        console.error("Exception inserting assistant chat message:", insertCatchErr?.stack || insertCatchErr);
+        console.error("[CATCH LOG] Exception inserting assistant chat message:", insertCatchErr?.stack || insertCatchErr);
       }
 
       // Evaluate appointment intent
-      const hasIntent = detectAppointmentIntent(data.message) || detectAppointmentIntent(reply);
+      const userHasIntent = detectAppointmentIntent(data.message);
+      const replyHasIntent = detectAppointmentIntent(reply);
+      const hasIntent = userHasIntent || replyHasIntent;
+      
       const hasVisitorData = Boolean(data.visitor?.name || data.visitor?.email || data.visitor?.phone);
 
-      console.log("Appointment condition evaluation:", { hasIntent, hasVisitorData, visitor: data.visitor });
+      console.log("[LOG 1] hasIntent evaluation:", { userHasIntent, replyHasIntent, hasIntent });
+      console.log("[LOG 2] visitor condition status:", { hasVisitorData, visitor: data.visitor });
 
       if (hasIntent && hasVisitorData) {
-        console.log("Appointment condition met. Processing appointment...");
+        console.log("[LOG 3] Immediately before entering the appointment block — Conditions MET!");
+
         const visitorInfo = extractVisitorInfo(data.message, data.history, data.visitor);
 
         const appointmentPayload = {
@@ -268,38 +275,51 @@ export const sophiaChat = createServerFn({ method: "POST" })
           },
         };
 
-        console.log("Calling submitAppointment() with:", appointmentPayload);
+        console.log("[LOG 4] Immediately before submitAppointment(). Payload:", JSON.stringify(appointmentPayload));
 
         try {
           const apptResult = await submitAppointment(appointmentPayload);
-          console.log("submitAppointment() output:", apptResult);
+          console.log("[LOG 5] Immediately after submitAppointment(). Result:", JSON.stringify(apptResult));
         } catch (e: any) {
-          console.error("Caught error inside submitAppointment():", e?.stack || e);
+          console.error("[CATCH LOG 8] Caught error inside submitAppointment():", e);
+          console.error("[CATCH LOG 8] submitAppointment() stack trace:", e?.stack);
         }
 
+        console.log("[LOG 6] Immediately before lead insert. Target data:", {
+          full_name: visitorInfo.name || "Sophia Chat Visitor",
+          email: visitorInfo.email || null,
+          phone: visitorInfo.phone || null,
+          message: data.message,
+          source: "sophia_chat",
+        });
+
         try {
-          const { error: leadError } = await supabaseAdmin.from("leads").insert({
+          const { data: leadResult, error: leadError } = await supabaseAdmin.from("leads").insert({
             full_name: visitorInfo.name || "Sophia Chat Visitor",
             email: visitorInfo.email || null,
             phone: visitorInfo.phone || null,
             message: data.message,
             source: "sophia_chat",
-          });
+          }).select();
+
           if (leadError) {
-            console.error("Lead Insertion Error:", leadError);
+            console.error("[CATCH LOG 8] Lead Insertion Error object:", JSON.stringify(leadError));
           } else {
-            console.log("Lead Insertion Successful");
+            console.log("[LOG 7] Immediately after lead insert. Success result:", JSON.stringify(leadResult));
           }
         } catch (e: any) {
-          console.error("Caught error during lead insertion:", e?.stack || e);
+          console.error("[CATCH LOG 8] Caught error during lead insertion:", e);
+          console.error("[CATCH LOG 8] Lead insertion stack trace:", e?.stack);
         }
       } else {
-        console.log("Skipping appointment execution due to missing intent or visitor fields.");
+        console.log("[LOG 3 FAIL] Skipped appointment block. hasIntent =", hasIntent, ", hasVisitorData =", hasVisitorData);
       }
 
+      console.log("--------------------------------------------------");
       return { reply, appointment_intent: hasIntent };
     } catch (globalErr: any) {
-      console.error("Global uncaught exception inside sophiaChat handler:", globalErr?.stack || globalErr);
+      console.error("[CATCH LOG 8] Global uncaught exception inside sophiaChat handler:", globalErr);
+      console.error("[CATCH LOG 8] Global exception stack trace:", globalErr?.stack);
       throw globalErr;
     }
   });

@@ -74,30 +74,51 @@ export function SophiaChat() {
     const updated = { ...visitor };
     let changed = false;
 
-    // Capture basic email pattern without explicit regex logic modifications
+    // 1. Strict Phone Extraction (only assign real phone digit sequences, max 40 chars)
+    if (!updated.phone) {
+      // Matches standard formats like +1 (555) 000-0000, 555-000-0000, or 10-15 digit sequences
+      const phoneMatch = text.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\b\d{7,15}\b/);
+      if (phoneMatch) {
+        const extracted = phoneMatch[0].trim();
+        if (extracted.length <= 40) {
+          updated.phone = extracted;
+          changed = true;
+        }
+      }
+    }
+
+    // 2. Email Extraction
     if (!updated.email && text.includes("@") && text.includes(".")) {
       const parts = text.split(/\s+/);
       const foundEmail = parts.find((p) => p.includes("@") && p.includes("."));
       if (foundEmail) {
-        updated.email = foundEmail.replace(/[,;]/g, "").trim();
-        changed = true;
+        const cleanEmail = foundEmail.replace(/[,;]/g, "").trim();
+        if (cleanEmail.length <= 100) {
+          updated.email = cleanEmail;
+          changed = true;
+        }
       }
     }
 
-    // Capture basic phone string if digits exist
-    const digitCount = (text.match(/\d/g) || []).length;
-    if (!updated.phone && digitCount >= 7 && digitCount <= 15) {
-      updated.phone = text.trim();
-      changed = true;
-    }
-
-    // Capture name if introduced
+    // 3. Name Extraction
     const lower = text.toLowerCase();
+    const digitCount = (text.match(/\d/g) || []).length;
     if (!updated.name && (lower.includes("name is") || lower.includes("i am") || lower.includes("i'm"))) {
-      updated.name = text.trim();
-      changed = true;
-    } else if (!updated.name && !text.includes("@") && digitCount < 5 && text.split(" ").length <= 3) {
-      // Fallback single line name entry
+      const parts = text.split(/is|am|i'm/i);
+      if (parts[1]) {
+        const extractedName = parts[1].trim().slice(0, 50);
+        if (extractedName) {
+          updated.name = extractedName;
+          changed = true;
+        }
+      }
+    } else if (
+      !updated.name &&
+      !text.includes("@") &&
+      digitCount === 0 &&
+      text.trim().split(/\s+/).length <= 3 &&
+      text.length <= 40
+    ) {
       updated.name = text.trim();
       changed = true;
     }
@@ -118,13 +139,20 @@ export function SophiaChat() {
     setMessages((m) => [...m, { role: "user", content: text }]);
     setBusy(true);
 
+    // Ensure state fields adhere strictly to max bounds before submitting
+    const safeVisitor = Object.keys(currentVisitor).length > 0 ? {
+      name: currentVisitor.name ? currentVisitor.name.slice(0, 100) : undefined,
+      email: currentVisitor.email ? currentVisitor.email.slice(0, 100) : undefined,
+      phone: currentVisitor.phone ? currentVisitor.phone.slice(0, 40) : undefined,
+    } : undefined;
+
     const payload = {
       session_id: sessionId,
       message: text,
       history: historyForModel,
       page_url: typeof window !== "undefined" ? window.location.href : undefined,
       user_agent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
-      visitor: Object.keys(currentVisitor).length > 0 ? currentVisitor : undefined,
+      visitor: safeVisitor,
     };
 
     console.log("Sending SophiaChat request payload with visitor:", payload);

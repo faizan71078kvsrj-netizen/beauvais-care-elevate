@@ -53,18 +53,27 @@ export function SophiaChat() {
     setInput("");
     setMessages((m) => [...m, { role: "user", content: text }]);
     setBusy(true);
+
+    const payload = {
+      session_id: sessionId,
+      message: text,
+      history: historyForModel,
+      page_url: typeof window !== "undefined" ? window.location.href : undefined,
+      user_agent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+    };
+
+    console.log("--> [1] [BEFORE] Dispatching SophiaChat request payload:", JSON.stringify(payload, null, 2));
+
     try {
       const res = await chat({
-        data: {
-          session_id: sessionId,
-          message: text,
-          history: historyForModel,
-          page_url: typeof window !== "undefined" ? window.location.href : undefined,
-          user_agent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
-        },
+        data: payload,
       });
+
+      console.log("<-- [1] [AFTER] Received response from sophiaChat RPC call:", JSON.stringify(res, null, 2));
+
       setMessages((m) => [...m, { role: "assistant", content: res.reply }]);
-    } catch {
+    } catch (err: any) {
+      console.error("[7] [LOGGED ERROR] Exception caught in frontend SophiaChat send():", err?.stack || err);
       setMessages((m) => [
         ...m,
         {

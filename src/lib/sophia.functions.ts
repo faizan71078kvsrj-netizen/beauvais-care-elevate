@@ -87,14 +87,32 @@ async function loadSiteFacts(): Promise<string> {
 const OUT_OF_CREDIT_MESSAGE =
   "Our AI assistant is temporarily unavailable due to high demand. Please try again shortly, contact us through WhatsApp, or call our office for immediate assistance.";
 
-// Very light appointment-intent heuristic — the backend job (or Sophia) can
-// enrich this later. Keeps free-tier cost low by not calling the model twice.
 function detectAppointmentIntent(text: string): boolean {
+  console.log("--> [3] [BEFORE] detectAppointmentIntent() input text:", text);
   const t = text.toLowerCase();
-  return (
+  const hasIntent = (
     /\b(book|schedule|appointment|reserve|tour|visit)\b/.test(t) ||
     /\b(availability|available)\b/.test(t)
   );
+  console.log("<-- [3] [AFTER] detectAppointmentIntent() output:", hasIntent);
+  return hasIntent;
+}
+
+function extractVisitorInfo(message: string, history: ChatTurn[], visitorObj?: { name?: string; email?: string; phone?: string }) {
+  console.log("--> [4] [BEFORE] extractVisitorInfo() inputs:", {
+    message,
+    historyCount: history.length,
+    visitorObj,
+  });
+
+  const info = {
+    name: visitorObj?.name || "",
+    email: visitorObj?.email || "",
+    phone: visitorObj?.phone || "",
+  };
+
+  console.log("<-- [4] [AFTER] extractVisitorInfo() output:", info);
+  return info;
 }
 
 async function callGemini(opts: {
@@ -104,8 +122,6 @@ async function callGemini(opts: {
   userMessage: string;
   visitor?: { name?: string; email?: string; phone?: string };
 }): Promise<string> {
-  console.log("callGemini RECEIVED VISITOR OBJECT:", JSON.stringify(opts.visitor, null, 2));
-
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("gemini_key_missing");
 
@@ -157,132 +173,148 @@ async function callGemini(opts: {
 export const sophiaChat = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ChatInput.parse(d))
   .handler(async ({ data }) => {
-    console.log("sophiaChat HANDLER RECEIVED visitor:", JSON.stringify(data.visitor, null, 2));
+    console.log("--> [2] [BEFORE] sophiaChat handler received validated data:", JSON.stringify(data, null, 2));
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    // Load AI settings (enabled flag + model)
-    const { data: settingsRows } = await supabaseAdmin
-      .from("settings")
-      .select("value")
-      .eq("key", "ai")
-      .maybeSingle();
-    const ai = (settingsRows?.value ?? {}) as { enabled?: boolean; model?: string };
-    if (ai.enabled === false) {
-      return { reply: OUT_OF_CREDIT_MESSAGE, disabled: true };
-    }
-    const model = process.env.GEMINI_MODEL || ai.model || "gemini-2.5-flash";
-
-    // Persist inbound user turn
     try {
-      const { error: userInsertErr } = await supabaseAdmin.from("chat_messages").insert({
-        session_id: data.session_id,
-        role: "user",
-        content: data.message,
-      });
-      if (userInsertErr) {
-        console.error("Error inserting user chat message:", userInsertErr);
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+      // Load AI settings (enabled flag + model)
+      const { data: settingsRows } = await supabaseAdmin
+        .from("settings")
+        .select("value")
+        .eq("key", "ai")
+        .maybeSingle();
+      const ai = (settingsRows?.value ?? {}) as { enabled?: boolean; model?: string };
+      if (ai.enabled === false) {
+        console.log("<-- [2] sophiaChat handler exiting early: AI is disabled in settings.");
+        return { reply: OUT_OF_CREDIT_MESSAGE, disabled: true };
       }
-    } catch (insertCatchErr) {
-      console.error("Exception handling user chat message insertion:", insertCatchErr);
-    }
+      const model = process.env.GEMINI_MODEL || ai.model || "gemini-2.5-flash";
 
-    // Build system prompt with cached knowledge
-    const [knowledge, siteFacts] = await Promise.all([loadKnowledge(), loadSiteFacts()]);
-    const system = [
-      CORE_IDENTITY,
-      siteFacts && `\nBusiness facts:\n${siteFacts}`,
-      knowledge && `\nKnowledge base (authoritative — prefer these over guesses):\n${knowledge}`,
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    let reply = "";
-    try {
-      console.log("PAYLOAD IMMEDIATELY BEFORE callGemini():", JSON.stringify({
-        model,
-        system: "[SYSTEM PROMPT TRUNCATED FOR LOGS]",
-        historyCount: data.history.length,
-        userMessage: data.message,
-        visitor: data.visitor
-      }, null, 2));
-
-      reply = await callGemini({
-        model,
-        system,
-        history: data.history,
-        userMessage: data.message,
-        visitor: data.visitor,
-      });
-    } catch (err: any) {
-      // Log the raw error for admin review; return a friendly message to visitor
+      // Persist inbound user turn
       try {
-        await supabaseAdmin.from("ai_errors").insert({
+        const { error: userInsertErr } = await supabaseAdmin.from("chat_messages").insert({
           session_id: data.session_id,
-          code: err?.message ?? "unknown",
-          message: String(err?.body ?? err?.message ?? err).slice(0, 2000),
-          metadata: { status: err?.status ?? null, model },
+          role: "user",
+          content: data.message,
         });
-      } catch (logErr) {
-        console.error("Failed to log AI error to database:", logErr);
+        if (userInsertErr) {
+          console.error("[LOGGED ERROR] Exception/Error inserting user chat message:", userInsertErr);
+        }
+      } catch (insertCatchErr: any) {
+        console.error("[LOGGED ERROR] Exception inserting user chat message:", insertCatchErr?.stack || insertCatchErr);
       }
-      return { reply: OUT_OF_CREDIT_MESSAGE, error: true };
-    }
 
-    if (!reply) reply = OUT_OF_CREDIT_MESSAGE;
+      // Build system prompt with cached knowledge
+      const [knowledge, siteFacts] = await Promise.all([loadKnowledge(), loadSiteFacts()]);
+      const system = [
+        CORE_IDENTITY,
+        siteFacts && `\nBusiness facts:\n${siteFacts}`,
+        knowledge && `\nKnowledge base (authoritative — prefer these over guesses):\n${knowledge}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
 
-    // Persist assistant reply
-    try {
-      const { error: assistantInsertErr } = await supabaseAdmin.from("chat_messages").insert({
-        session_id: data.session_id,
-        role: "assistant",
-        content: reply,
-      });
-      if (assistantInsertErr) {
-        console.error("Error inserting assistant chat message:", assistantInsertErr);
-      }
-    } catch (insertCatchErr) {
-      console.error("Exception handling assistant chat message insertion:", insertCatchErr);
-    }
-
-    // If appointment intent AND visitor provided contact info, drop a lead and appointment so it lands in CRM.
-    const hasIntent = detectAppointmentIntent(data.message);
-    if (hasIntent && data.visitor?.name) {
+      let reply = "";
       try {
-        const apptResult = await submitAppointment({
+        reply = await callGemini({
+          model,
+          system,
+          history: data.history,
+          userMessage: data.message,
+          visitor: data.visitor,
+        });
+      } catch (err: any) {
+        console.error("[LOGGED ERROR] Gemini Call Failed:", err?.stack || err);
+        try {
+          await supabaseAdmin.from("ai_errors").insert({
+            session_id: data.session_id,
+            code: err?.message ?? "unknown",
+            message: String(err?.body ?? err?.message ?? err).slice(0, 2000),
+            metadata: { status: err?.status ?? null, model },
+          });
+        } catch (logErr: any) {
+          console.error("[LOGGED ERROR] Failed to log AI error to database:", logErr?.stack || logErr);
+        }
+        return { reply: OUT_OF_CREDIT_MESSAGE, error: true };
+      }
+
+      if (!reply) reply = OUT_OF_CREDIT_MESSAGE;
+
+      // Persist assistant reply
+      try {
+        const { error: assistantInsertErr } = await supabaseAdmin.from("chat_messages").insert({
+          session_id: data.session_id,
+          role: "assistant",
+          content: reply,
+        });
+        if (assistantInsertErr) {
+          console.error("[LOGGED ERROR] Error inserting assistant chat message:", assistantInsertErr);
+        }
+      } catch (insertCatchErr: any) {
+        console.error("[LOGGED ERROR] Exception inserting assistant chat message:", insertCatchErr?.stack || insertCatchErr);
+      }
+
+      // Evaluate appointment intent
+      const hasIntentInMessage = detectAppointmentIntent(data.message);
+      const hasIntentInReply = detectAppointmentIntent(reply);
+      const hasIntent = hasIntentInMessage || hasIntentInReply;
+
+      console.log("--> Intent Check Summary:", { hasIntentInMessage, hasIntentInReply, hasIntent });
+
+      if (hasIntent && data.visitor?.name) {
+        console.log("--> Visitor condition met (hasIntent=true, data.visitor.name present).");
+        const visitorInfo = extractVisitorInfo(data.message, data.history, data.visitor);
+
+        const appointmentPayload = {
           data: {
-            name: data.visitor.name,
-            email: data.visitor.email || "",
-            phone: data.visitor.phone || "",
+            name: visitorInfo.name,
+            email: visitorInfo.email || "",
+            phone: visitorInfo.phone || "",
             service: "Care Home Tour",
             date: new Date().toISOString().split("T")[0],
-            message: data.message
-          }
-        });
-        console.log("SUBMIT APPOINTMENT RESULT:", JSON.stringify(apptResult, null, 2));
-      } catch (e) {
-        console.error("Appointment Error using submitAppointment():", e);
-      }
+            message: `[Booked via Sophia AI Chat]\nFull Conversation Note: ${data.message}`,
+          },
+        };
 
-      try {
-        const { error: leadError } = await supabaseAdmin.from("leads").insert({
-          full_name: data.visitor.name,
-          email: data.visitor.email || null,
-          phone: data.visitor.phone || null,
-          message: data.message,
-          source: "sophia_chat",
-        });
-        if (leadError) {
-          console.error("LEAD INSERT ERROR:", JSON.stringify(leadError, null, 2));
-        } else {
-          console.log("LEAD INSERT SUCCESS");
+        console.log("--> [5] [BEFORE] submitAppointment() input payload:", JSON.stringify(appointmentPayload, null, 2));
+
+        try {
+          const apptResult = await submitAppointment(appointmentPayload);
+          console.log("<-- [6] [AFTER] submitAppointment() execution result:", JSON.stringify(apptResult, null, 2));
+        } catch (e: any) {
+          console.error("[7] [LOGGED ERROR] Caught error inside submitAppointment():", e?.stack || e);
         }
-      } catch (e) {
-        console.error("Lead Error:", e);
-      }
-    }
 
-    return { reply, appointment_intent: hasIntent };
+        try {
+          console.log("--> [BEFORE] Direct leads database insertion...");
+          const { error: leadError } = await supabaseAdmin.from("leads").insert({
+            full_name: visitorInfo.name,
+            email: visitorInfo.email || null,
+            phone: visitorInfo.phone || null,
+            message: data.message,
+            source: "sophia_chat",
+          });
+          if (leadError) {
+            console.error("[LOGGED ERROR] Lead Database Insertion Error:", JSON.stringify(leadError, null, 2));
+          } else {
+            console.log("<-- [AFTER] Lead Database Insertion Successful");
+          }
+        } catch (e: any) {
+          console.error("[7] [LOGGED ERROR] Caught error during lead database insertion:", e?.stack || e);
+        }
+      } else {
+        console.log(
+          `--> Skipping appointment submission. Reason: hasIntent=${hasIntent}, visitorNamePresent=${Boolean(data.visitor?.name)}`
+        );
+      }
+
+      console.log("<-- [2] [AFTER] sophiaChat handler completing cleanly.");
+      return { reply, appointment_intent: hasIntent };
+    } catch (globalErr: any) {
+      console.error("[7] [LOGGED ERROR] Global uncaught exception inside sophiaChat handler:", globalErr?.stack || globalErr);
+      throw globalErr;
+    }
   });
 
 // ------------ Admin knowledge management ------------

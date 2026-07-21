@@ -2,9 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 /**
- * Flexible schema that accepts both flat payloads and nested `{ data: ... }` objects,
- * while seamlessly mapping alternate field naming conventions (e.g. name vs full_name,
- * date vs preferred_date, message vs notes).
+ * Flexible schema that accepts both flat payloads and nested `{ data: ... }` objects.
  */
 const RawAppointmentSchema = z.object({
   name: z.string().optional(),
@@ -15,9 +13,12 @@ const RawAppointmentSchema = z.object({
   service_type: z.string().optional().nullable(),
   date: z.string().optional().nullable(),
   preferred_date: z.string().optional().nullable(),
+  preferred_time: z.string().optional().nullable(),
+  time: z.string().optional().nullable(),
   message: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   status: z.string().optional(),
+  source: z.string().optional(),
 });
 
 export const AppointmentSchema = z.preprocess((val) => {
@@ -42,58 +43,38 @@ export const submitAppointment = createServerFn({ method: "POST" })
       const phone = data.phone && data.phone.trim() !== "" ? data.phone.trim() : null;
       const service = data.service || data.service_type || "Care Home Tour";
       const preferredDate = data.preferred_date || data.date || new Date().toISOString().split("T")[0];
-      const notes = data.notes || data.message || "";
+      const preferredTime = data.preferred_time || data.time || null;
+      const message = data.message || data.notes || "";
+      const status = data.status || "pending";
+      const source = data.source || "sophia_chat";
 
-      // Attempt primary schema insertion matching standard appointments table layout
-      const primaryPayload = {
+      const payload = {
         full_name: fullName,
         email: email,
         phone: phone,
         service: service,
         preferred_date: preferredDate,
-        notes: notes,
-        status: data.status || "pending",
+        preferred_time: preferredTime,
+        message: message,
+        status: status,
+        source: source,
       };
 
-      console.log("[LOG] Attempting appointment insertion with primary payload:", JSON.stringify(primaryPayload));
+      console.log("[LOG] Inserting appointment into database:", JSON.stringify(payload));
 
-      const { data: insertedData, error: primaryError } = await supabaseAdmin
+      const { data: insertedData, error } = await supabaseAdmin
         .from("appointments")
-        .insert(primaryPayload)
+        .insert(payload)
         .select()
         .single();
 
-      if (!primaryError) {
-        console.log("[LOG] Appointment created successfully:", JSON.stringify(insertedData));
-        return { success: true, appointment: insertedData };
+      if (error) {
+        console.error("[ERROR] Appointment insertion failed:", JSON.stringify(error));
+        throw new Error(`Failed to create appointment: ${error.message}`);
       }
 
-      console.warn("[WARN] Primary appointment insertion failed, trying secondary fallback mapping:", primaryError);
-
-      // Fallback payload for alternate column naming conventions (e.g. name, date, message)
-      const fallbackPayload = {
-        name: fullName,
-        email: email,
-        phone: phone,
-        service: service,
-        date: preferredDate,
-        message: notes,
-        status: data.status || "pending",
-      };
-
-      const { data: fallbackData, error: fallbackError } = await supabaseAdmin
-        .from("appointments")
-        .insert(fallbackPayload)
-        .select()
-        .single();
-
-      if (fallbackError) {
-        console.error("[ERROR] Secondary appointment insertion failed:", JSON.stringify(fallbackError));
-        throw new Error(`Failed to create appointment: ${fallbackError.message}`);
-      }
-
-      console.log("[LOG] Appointment created via fallback payload:", JSON.stringify(fallbackData));
-      return { success: true, appointment: fallbackData };
+      console.log("[LOG] Appointment created successfully:", JSON.stringify(insertedData));
+      return { success: true, appointment: insertedData };
 
     } catch (err: any) {
       console.error("[CATCH LOG] Exception inside submitAppointment:", err?.stack || err);

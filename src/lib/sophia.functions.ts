@@ -22,7 +22,7 @@ const ChatInput = z.object({
   visitor: z
     .object({
       name: z.string().max(120).optional(),
-      email: z.string().email().optional().or(z.literal("")),
+      email: z.string().optional().or(z.literal("")),
       phone: z.string().max(40).optional(),
     })
     .optional(),
@@ -88,31 +88,24 @@ const OUT_OF_CREDIT_MESSAGE =
   "Our AI assistant is temporarily unavailable due to high demand. Please try again shortly, contact us through WhatsApp, or call our office for immediate assistance.";
 
 function detectAppointmentIntent(text: string): boolean {
-  console.log("--> [3] [BEFORE] detectAppointmentIntent() input text:", text);
+  console.log("detectAppointmentIntent() checking text:", text);
   const t = text.toLowerCase();
   const hasIntent = (
     /\b(book|schedule|appointment|reserve|tour|visit)\b/.test(t) ||
     /\b(availability|available)\b/.test(t)
   );
-  console.log("<-- [3] [AFTER] detectAppointmentIntent() output:", hasIntent);
+  console.log("detectAppointmentIntent() result:", hasIntent);
   return hasIntent;
 }
 
 function extractVisitorInfo(message: string, history: ChatTurn[], visitorObj?: { name?: string; email?: string; phone?: string }) {
-  console.log("--> [4] [BEFORE] extractVisitorInfo() inputs:", {
-    message,
-    historyCount: history.length,
-    visitorObj,
-  });
+  console.log("extractVisitorInfo() utilizing visitor object:", visitorObj);
 
-  const info = {
+  return {
     name: visitorObj?.name || "",
     email: visitorObj?.email || "",
     phone: visitorObj?.phone || "",
   };
-
-  console.log("<-- [4] [AFTER] extractVisitorInfo() output:", info);
-  return info;
 }
 
 async function callGemini(opts: {
@@ -173,7 +166,7 @@ async function callGemini(opts: {
 export const sophiaChat = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ChatInput.parse(d))
   .handler(async ({ data }) => {
-    console.log("--> [2] [BEFORE] sophiaChat handler received validated data:", JSON.stringify(data, null, 2));
+    console.log("sophiaChat handler received visitor data:", data.visitor);
 
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -186,7 +179,6 @@ export const sophiaChat = createServerFn({ method: "POST" })
         .maybeSingle();
       const ai = (settingsRows?.value ?? {}) as { enabled?: boolean; model?: string };
       if (ai.enabled === false) {
-        console.log("<-- [2] sophiaChat handler exiting early: AI is disabled in settings.");
         return { reply: OUT_OF_CREDIT_MESSAGE, disabled: true };
       }
       const model = process.env.GEMINI_MODEL || ai.model || "gemini-2.5-flash";
@@ -199,10 +191,10 @@ export const sophiaChat = createServerFn({ method: "POST" })
           content: data.message,
         });
         if (userInsertErr) {
-          console.error("[LOGGED ERROR] Exception/Error inserting user chat message:", userInsertErr);
+          console.error("Error inserting user chat message:", userInsertErr);
         }
       } catch (insertCatchErr: any) {
-        console.error("[LOGGED ERROR] Exception inserting user chat message:", insertCatchErr?.stack || insertCatchErr);
+        console.error("Exception inserting user chat message:", insertCatchErr?.stack || insertCatchErr);
       }
 
       // Build system prompt with cached knowledge
@@ -225,7 +217,7 @@ export const sophiaChat = createServerFn({ method: "POST" })
           visitor: data.visitor,
         });
       } catch (err: any) {
-        console.error("[LOGGED ERROR] Gemini Call Failed:", err?.stack || err);
+        console.error("Gemini Call Failed:", err?.stack || err);
         try {
           await supabaseAdmin.from("ai_errors").insert({
             session_id: data.session_id,
@@ -234,7 +226,7 @@ export const sophiaChat = createServerFn({ method: "POST" })
             metadata: { status: err?.status ?? null, model },
           });
         } catch (logErr: any) {
-          console.error("[LOGGED ERROR] Failed to log AI error to database:", logErr?.stack || logErr);
+          console.error("Failed to log AI error to database:", logErr?.stack || logErr);
         }
         return { reply: OUT_OF_CREDIT_MESSAGE, error: true };
       }
@@ -249,70 +241,65 @@ export const sophiaChat = createServerFn({ method: "POST" })
           content: reply,
         });
         if (assistantInsertErr) {
-          console.error("[LOGGED ERROR] Error inserting assistant chat message:", assistantInsertErr);
+          console.error("Error inserting assistant chat message:", assistantInsertErr);
         }
       } catch (insertCatchErr: any) {
-        console.error("[LOGGED ERROR] Exception inserting assistant chat message:", insertCatchErr?.stack || insertCatchErr);
+        console.error("Exception inserting assistant chat message:", insertCatchErr?.stack || insertCatchErr);
       }
 
       // Evaluate appointment intent
-      const hasIntentInMessage = detectAppointmentIntent(data.message);
-      const hasIntentInReply = detectAppointmentIntent(reply);
-      const hasIntent = hasIntentInMessage || hasIntentInReply;
+      const hasIntent = detectAppointmentIntent(data.message) || detectAppointmentIntent(reply);
+      const hasVisitorData = Boolean(data.visitor?.name || data.visitor?.email || data.visitor?.phone);
 
-      console.log("--> Intent Check Summary:", { hasIntentInMessage, hasIntentInReply, hasIntent });
+      console.log("Appointment condition evaluation:", { hasIntent, hasVisitorData, visitor: data.visitor });
 
-      if (hasIntent && data.visitor?.name) {
-        console.log("--> Visitor condition met (hasIntent=true, data.visitor.name present).");
+      if (hasIntent && hasVisitorData) {
+        console.log("Appointment condition met. Processing appointment...");
         const visitorInfo = extractVisitorInfo(data.message, data.history, data.visitor);
 
         const appointmentPayload = {
           data: {
-            name: visitorInfo.name,
-            email: visitorInfo.email || "",
-            phone: visitorInfo.phone || "",
+            name: visitorInfo.name || "Sophia Chat Visitor",
+            email: visitorInfo.email,
+            phone: visitorInfo.phone,
             service: "Care Home Tour",
             date: new Date().toISOString().split("T")[0],
             message: `[Booked via Sophia AI Chat]\nFull Conversation Note: ${data.message}`,
           },
         };
 
-        console.log("--> [5] [BEFORE] submitAppointment() input payload:", JSON.stringify(appointmentPayload, null, 2));
+        console.log("Calling submitAppointment() with:", appointmentPayload);
 
         try {
           const apptResult = await submitAppointment(appointmentPayload);
-          console.log("<-- [6] [AFTER] submitAppointment() execution result:", JSON.stringify(apptResult, null, 2));
+          console.log("submitAppointment() output:", apptResult);
         } catch (e: any) {
-          console.error("[7] [LOGGED ERROR] Caught error inside submitAppointment():", e?.stack || e);
+          console.error("Caught error inside submitAppointment():", e?.stack || e);
         }
 
         try {
-          console.log("--> [BEFORE] Direct leads database insertion...");
           const { error: leadError } = await supabaseAdmin.from("leads").insert({
-            full_name: visitorInfo.name,
+            full_name: visitorInfo.name || "Sophia Chat Visitor",
             email: visitorInfo.email || null,
             phone: visitorInfo.phone || null,
             message: data.message,
             source: "sophia_chat",
           });
           if (leadError) {
-            console.error("[LOGGED ERROR] Lead Database Insertion Error:", JSON.stringify(leadError, null, 2));
+            console.error("Lead Insertion Error:", leadError);
           } else {
-            console.log("<-- [AFTER] Lead Database Insertion Successful");
+            console.log("Lead Insertion Successful");
           }
         } catch (e: any) {
-          console.error("[7] [LOGGED ERROR] Caught error during lead database insertion:", e?.stack || e);
+          console.error("Caught error during lead insertion:", e?.stack || e);
         }
       } else {
-        console.log(
-          `--> Skipping appointment submission. Reason: hasIntent=${hasIntent}, visitorNamePresent=${Boolean(data.visitor?.name)}`
-        );
+        console.log("Skipping appointment execution due to missing intent or visitor fields.");
       }
 
-      console.log("<-- [2] [AFTER] sophiaChat handler completing cleanly.");
       return { reply, appointment_intent: hasIntent };
     } catch (globalErr: any) {
-      console.error("[7] [LOGGED ERROR] Global uncaught exception inside sophiaChat handler:", globalErr?.stack || globalErr);
+      console.error("Global uncaught exception inside sophiaChat handler:", globalErr?.stack || globalErr);
       throw globalErr;
     }
   });

@@ -10,7 +10,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { SophiaChat } from "@/components/sophia-chat";
-import { AdminGate } from "./shell"; // <-- fixed import
+import { AdminGate } from "./shell"; // ✅ relative import – adjust if needed
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -93,7 +93,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  // Determine if we are on an admin route (excluding login)
+  // Only wrap admin routes (excluding login) with AdminGate
   const isAdminRoute = pathname.startsWith("/admin") && !pathname.startsWith("/admin/login");
 
   return (

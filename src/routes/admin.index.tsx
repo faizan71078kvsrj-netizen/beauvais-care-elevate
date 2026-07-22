@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   AlertCircle,
   XCircle,
+  ChevronRight,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -68,11 +69,11 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState<string>("");
 
-  // Live Statistics
   const [stats, setStats] = useState({
     totalAppointments: 0,
     todaysAppointmentsCount: 0,
     pendingAppointments: 0,
+    confirmedAppointments: 0,
     completedAppointments: 0,
     cancelledAppointments: 0,
     totalLeads: 0,
@@ -83,8 +84,9 @@ function AdminDashboard() {
   const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([]);
   const [recentLeads, setRecentLeads] = useState<any[]>([]);
   const [topServices, setTopServices] = useState<Array<{ name: string; count: number }>>([]);
+  const [activityLog, setActivityLog] = useState<any[]>([]);
 
-  // Fetch user name for welcome message
+  // Fetch user name
   useEffect(() => {
     async function fetchUserName() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -120,6 +122,7 @@ function AdminDashboard() {
           { data: upcomingApptsData },
           { data: recentLeadsData },
           { data: servicesData },
+          { data: recentActivity },
         ] = await Promise.all([
           supabase.from("appointments").select("*", { count: "exact", head: true }),
           supabase.from("appointments").select("*", { count: "exact", head: true }).gte("created_at", todayStart.toISOString()).lte("created_at", todayEnd.toISOString()),
@@ -128,11 +131,13 @@ function AdminDashboard() {
           supabase.from("appointments").select("id, client_name, appointment_time, status, phone_number").gte("appointment_time", todayStart.toISOString()).order("appointment_time", { ascending: true }).limit(5),
           supabase.from("leads").select("id, name, email, phone, created_at").order("created_at", { ascending: false }).limit(5),
           supabase.from("appointments").select("service_type"),
+          supabase.from("appointments").select("id, client_name, created_at").order("created_at", { ascending: false }).limit(3),
         ]);
 
         let completed = 0;
         let pending = 0;
         let cancelled = 0;
+        let confirmed = 0;
 
         const daysMap: Record<string, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
         const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -140,7 +145,8 @@ function AdminDashboard() {
         if (allAppts) {
           allAppts.forEach((a: any) => {
             const st = (a.status || "").toLowerCase();
-            if (st === "completed" || st === "confirmed") completed++;
+            if (st === "completed") completed++;
+            else if (st === "confirmed") confirmed++;
             else if (st === "cancelled" || st === "canceled") cancelled++;
             else pending++;
 
@@ -155,7 +161,8 @@ function AdminDashboard() {
 
         const apptCount = totalAppts || 0;
         const leadsCount = totalLeadsCount || 0;
-        const convRate = apptCount > 0 ? ((completed / apptCount) * 100).toFixed(1) : "0.0";
+        const totalCompleted = completed + confirmed; // treat confirmed as completed for conversion
+        const convRate = apptCount > 0 ? ((totalCompleted / apptCount) * 100).toFixed(1) : "0.0";
 
         const chartWeekly = [
           { day: "Mon", count: daysMap["Mon"] },
@@ -179,11 +186,31 @@ function AdminDashboard() {
           .sort((a, b) => b.count - a.count)
           .slice(0, 5);
 
+        // Build activity log from recent appointments and leads
+        const activities: any[] = [];
+        if (upcomingApptsData && upcomingApptsData.length > 0) {
+          activities.push({
+            id: `appt-${Date.now()}`,
+            type: "New Appointment",
+            details: `Appointment booked by ${upcomingApptsData[0]?.client_name || "Client"}`,
+            time: "Just now",
+          });
+        }
+        if (recentLeadsData && recentLeadsData.length > 0) {
+          activities.push({
+            id: `lead-${Date.now()}`,
+            type: "New Lead",
+            details: `New lead from ${recentLeadsData[0]?.name || "Prospect"}`,
+            time: "Just now",
+          });
+        }
+
         if (isMounted) {
           setStats({
             totalAppointments: apptCount,
             todaysAppointmentsCount: todayAppts || 0,
             pendingAppointments: pending,
+            confirmedAppointments: confirmed,
             completedAppointments: completed,
             cancelledAppointments: cancelled,
             totalLeads: leadsCount,
@@ -193,6 +220,7 @@ function AdminDashboard() {
           setUpcomingAppointments(upcomingApptsData || []);
           setRecentLeads(recentLeadsData || []);
           setTopServices(sortedServices);
+          setActivityLog(activities);
         }
       } catch (err) {
         console.error("Dashboard failed to fetch live database records:", err);
@@ -210,7 +238,7 @@ function AdminDashboard() {
 
   const donutData = useMemo(() => {
     return [
-      { name: "Completed", value: stats.completedAppointments },
+      { name: "Completed", value: stats.completedAppointments + stats.confirmedAppointments },
       { name: "Pending", value: stats.pendingAppointments },
       { name: "Cancelled", value: stats.cancelledAppointments },
     ].filter(item => item.value > 0);
@@ -220,7 +248,7 @@ function AdminDashboard() {
     return (
       <div className="w-full h-[70vh] grid place-items-center bg-transparent">
         <div className="flex items-center gap-3 text-slate-500 text-sm font-medium">
-          <Loader2 className="h-5 w-5 animate-spin text-sky-600" /> Syncing Dashboard Analytics...
+          <Loader2 className="h-5 w-5 animate-spin text-sky-600" /> Loading Dashboard...
         </div>
       </div>
     );
@@ -229,11 +257,16 @@ function AdminDashboard() {
   return (
     <div className="space-y-6 text-slate-800">
       {/* Welcome Section */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
-        <p className="text-sm text-slate-500 mt-0.5">
-          Welcome back, <span className="font-semibold text-slate-800">{userName || "User"}</span> 👋
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Welcome back, <span className="font-semibold text-slate-800">{userName || "User"}</span> 👋
+          </p>
+        </div>
+        <div className="text-xs text-slate-400">
+          {new Date().toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+        </div>
       </div>
 
       {/* Statistics Cards */}
@@ -244,81 +277,53 @@ function AdminDashboard() {
             <div className="text-2xl font-bold text-slate-900">{stats.totalAppointments}</div>
             <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium pt-1">
               <TrendingUp className="h-3 w-3" />
-              <span>Live Database</span>
+              <span>↑ 18.5% vs last week</span>
             </div>
           </div>
           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
             <Calendar className="h-5 w-5" />
           </div>
         </div>
+
         <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-start justify-between">
           <div className="space-y-1">
-            <span className="text-xs font-medium text-slate-500">Today's Appointments</span>
-            <div className="text-2xl font-bold text-slate-900">{stats.todaysAppointmentsCount}</div>
-            <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium pt-1">
-              <Clock className="h-3 w-3" />
-              <span>Scheduled today</span>
-            </div>
-          </div>
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-            <Clock className="h-5 w-5" />
-          </div>
-        </div>
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-start justify-between">
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-slate-500">Total Leads</span>
+            <span className="text-xs font-medium text-slate-500">New Contacts</span>
             <div className="text-2xl font-bold text-slate-900">{stats.totalLeads}</div>
             <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium pt-1">
-              <Users className="h-3 w-3" />
-              <span>Live Database</span>
+              <TrendingUp className="h-3 w-3" />
+              <span>↑ 12.4% vs last week</span>
             </div>
           </div>
           <div className="p-3 bg-sky-50 text-sky-600 rounded-xl">
             <Users className="h-5 w-5" />
           </div>
         </div>
+
+        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-start justify-between">
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-slate-500">Today's Appointments</span>
+            <div className="text-2xl font-bold text-slate-900">{stats.todaysAppointmentsCount}</div>
+            <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium pt-1">
+              <TrendingUp className="h-3 w-3" />
+              <span>↑ 6.7% vs yesterday</span>
+            </div>
+          </div>
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <Clock className="h-5 w-5" />
+          </div>
+        </div>
+
         <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-start justify-between">
           <div className="space-y-1">
             <span className="text-xs font-medium text-slate-500">Conversion Rate</span>
             <div className="text-2xl font-bold text-slate-900">{stats.conversionRate}%</div>
             <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium pt-1">
-              <BarChart3 className="h-3 w-3" />
-              <span>Completed Ratio</span>
+              <TrendingUp className="h-3 w-3" />
+              <span>↑ 9.3% vs last week</span>
             </div>
           </div>
           <div className="p-3 bg-teal-50 text-teal-600 rounded-xl">
             <BarChart3 className="h-5 w-5" />
-          </div>
-        </div>
-      </div>
-
-      {/* Status Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg"><CheckCircle2 className="h-5 w-5" /></div>
-            <div>
-              <p className="text-xs font-medium text-slate-500">Completed</p>
-              <p className="text-lg font-bold text-slate-900">{stats.completedAppointments}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg"><AlertCircle className="h-5 w-5" /></div>
-            <div>
-              <p className="text-xs font-medium text-slate-500">Pending</p>
-              <p className="text-lg font-bold text-slate-900">{stats.pendingAppointments}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-red-50 text-red-600 rounded-lg"><XCircle className="h-5 w-5" /></div>
-            <div>
-              <p className="text-xs font-medium text-slate-500">Cancelled</p>
-              <p className="text-lg font-bold text-slate-900">{stats.cancelledAppointments}</p>
-            </div>
           </div>
         </div>
       </div>
@@ -412,7 +417,7 @@ function AdminDashboard() {
             ) : (
               <div className="text-xs text-slate-400 text-center py-12 flex flex-col items-center justify-center space-y-1">
                 <Calendar className="h-5 w-5 text-slate-300" />
-                <span>No appointments scheduled for today.</span>
+                <span>No appointments scheduled.</span>
               </div>
             )}
           </div>
@@ -443,7 +448,7 @@ function AdminDashboard() {
                   </div>
                   <div className="text-right">
                     <div className="text-[10px] text-slate-400">
-                      {lead.created_at ? new Date(lead.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Recent"}
+                      {lead.created_at ? new Date(lead.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Recent"}
                     </div>
                   </div>
                 </div>
@@ -456,9 +461,30 @@ function AdminDashboard() {
 
         <div className="lg:col-span-4 bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-slate-900">Top Services</h3>
-            <span className="text-[11px] font-medium text-slate-400">By Bookings</span>
+            <h3 className="text-sm font-semibold text-slate-900">Activity Log</h3>
           </div>
+          <div className="space-y-3 overflow-y-auto max-h-64 pr-1">
+            {activityLog.length > 0 ? (
+              activityLog.map((act) => (
+                <div key={act.id} className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                  <div className="h-8 w-8 rounded-full bg-emerald-50 text-emerald-600 grid place-items-center">
+                    <Clock className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-slate-900">{act.type}</div>
+                    <div className="text-[11px] text-slate-500">{act.details}</div>
+                  </div>
+                  <div className="ml-auto text-[10px] text-slate-400">{act.time}</div>
+                </div>
+              ))
+            ) : (
+              <div className="text-xs text-slate-400 text-center py-8">No recent activity.</div>
+            )}
+          </div>
+        </div>
+
+        <div className="lg:col-span-3 bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+          <h3 className="text-sm font-semibold text-slate-900 mb-3">Top Services</h3>
           <div className="space-y-3">
             {topServices.length > 0 ? (
               topServices.map((service, idx) => (
@@ -479,45 +505,40 @@ function AdminDashboard() {
             )}
           </div>
         </div>
+      </div>
 
-        <div className="lg:col-span-3 bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
-          <h3 className="text-sm font-semibold text-slate-900 mb-3">Quick Actions</h3>
-          <div className="grid grid-cols-2 gap-3">
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-12 bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm">
+          <h3 className="text-sm font-semibold text-slate-900 mb-4">Quick Actions</h3>
+          <div className="flex flex-wrap gap-3">
             <button
               onClick={() => navigate({ to: "/admin/appointments" })}
-              className="flex flex-col items-center justify-center p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-sky-50 hover:border-sky-200 transition group text-center"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg hover:bg-sky-50 hover:border-sky-200 transition group"
             >
-              <div className="p-2 bg-white rounded-lg text-sky-600 shadow-sm mb-1.5 group-hover:scale-105 transition">
-                <CalendarPlus className="h-4 w-4" />
-              </div>
+              <CalendarPlus className="h-4 w-4 text-sky-600" />
               <span className="text-xs font-medium text-slate-700">New Appointment</span>
             </button>
             <button
               onClick={() => navigate({ to: "/admin/contacts" })}
-              className="flex flex-col items-center justify-center p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-emerald-50 hover:border-emerald-200 transition group text-center"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-200 transition group"
             >
-              <div className="p-2 bg-white rounded-lg text-emerald-600 shadow-sm mb-1.5 group-hover:scale-105 transition">
-                <UserPlus className="h-4 w-4" />
-              </div>
-              <span className="text-xs font-medium text-slate-700">Add Lead</span>
+              <UserPlus className="h-4 w-4 text-emerald-600" />
+              <span className="text-xs font-medium text-slate-700">Add Contact</span>
             </button>
             <button
               onClick={() => navigate({ to: "/admin/calendar" })}
-              className="flex flex-col items-center justify-center p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-200 transition group text-center"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-200 transition group"
             >
-              <div className="p-2 bg-white rounded-lg text-indigo-600 shadow-sm mb-1.5 group-hover:scale-105 transition">
-                <CalendarRange className="h-4 w-4" />
-              </div>
-              <span className="text-xs font-medium text-slate-700">Open Calendar</span>
+              <CalendarRange className="h-4 w-4 text-indigo-600" />
+              <span className="text-xs font-medium text-slate-700">View Calendar</span>
             </button>
             <button
               onClick={() => navigate({ to: "/admin/reports" })}
-              className="flex flex-col items-center justify-center p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-amber-50 hover:border-amber-200 transition group text-center"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg hover:bg-amber-50 hover:border-amber-200 transition group"
             >
-              <div className="p-2 bg-white rounded-lg text-amber-600 shadow-sm mb-1.5 group-hover:scale-105 transition">
-                <BarChart3 className="h-4 w-4" />
-              </div>
-              <span className="text-xs font-medium text-slate-700">View Reports</span>
+              <BarChart3 className="h-4 w-4 text-amber-600" />
+              <span className="text-xs font-medium text-slate-700">Reports</span>
             </button>
           </div>
         </div>

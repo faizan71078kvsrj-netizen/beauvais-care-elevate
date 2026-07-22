@@ -36,6 +36,7 @@ import {
   Globe,
   Monitor,
   Cpu,
+  Check,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/appointments")({
@@ -73,6 +74,7 @@ export function Page() {
 
   // UI Modals & Dropdowns
   const [showNotifications, setShowNotifications] = useState(false);
+  const [readNotifIds, setReadNotifIds] = useState<Set<string>>(new Set());
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [calendarViewMode, setCalendarViewMode] = useState<"month" | "week" | "day">("month");
   const [calendarCurrentDate, setCalendarCurrentDate] = useState(new Date());
@@ -83,7 +85,7 @@ export function Page() {
   const [serviceSearch, setServiceSearch] = useState("");
   const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
 
-  // Automatically detect logged-in role from current session environment / existing backend context
+  // Dynamic user role detection fallback
   const currentUserRole = useMemo(() => {
     return "Administrator";
   }, []);
@@ -248,6 +250,16 @@ export function Page() {
     return uniqueServices.filter((s) => s.toLowerCase().includes(serviceSearch.toLowerCase().trim()));
   }, [uniqueServices, serviceSearch]);
 
+  // Dynamic Source Resolver
+  const resolveApptSource = (a: any) => {
+    if (a.source && SOURCES.includes(a.source as any)) return a.source;
+    const notes = String(a.internal_notes || "").toLowerCase();
+    if (notes.includes("sophia")) return "Sophia AI";
+    if (notes.includes("admin")) return "Admin Panel";
+    if (notes.includes("api")) return "API";
+    return "Website";
+  };
+
   // ---------------------------------------------------------------------------
   // SEARCH & ADVANCED FILTERING
   // ---------------------------------------------------------------------------
@@ -264,7 +276,7 @@ export function Page() {
 
       // 3. Filter Menu Source
       if (filterSource !== "all") {
-        const itemSource = a.source || (a.internal_notes?.includes("Sophia") ? "Sophia AI" : "Website");
+        const itemSource = resolveApptSource(a);
         if (itemSource !== filterSource) return false;
       }
 
@@ -358,7 +370,7 @@ export function Page() {
     };
   }, [data]);
 
-  // Notifications logic
+  // Notifications logic with dynamic read management
   const notifications = useMemo(() => {
     const list: Array<{ id: string; rawItem: any; title: string; desc: string; type: "pending" | "today" | "new"; time: string }> = [];
     const todayStr = new Date().toISOString().split("T")[0];
@@ -367,7 +379,7 @@ export function Page() {
       const recency = getRecencyBadge(a.created_at);
       if (recency) {
         list.push({
-          id: a.id,
+          id: `new-${a.id}`,
           rawItem: a,
           title: "New Booking Received",
           desc: `${a.full_name || "Guest"} booked ${a.service || "a service"}`,
@@ -376,7 +388,7 @@ export function Page() {
         });
       } else if (a.status === "pending") {
         list.push({
-          id: a.id,
+          id: `pending-${a.id}`,
           rawItem: a,
           title: "Pending Confirmation",
           desc: `${a.full_name || "Guest"} is awaiting confirmation`,
@@ -385,7 +397,7 @@ export function Page() {
         });
       } else if (a.preferred_date === todayStr) {
         list.push({
-          id: a.id,
+          id: `today-${a.id}`,
           rawItem: a,
           title: "Scheduled for Today",
           desc: `${a.full_name || "Guest"} at ${a.preferred_time || "scheduled time"}`,
@@ -395,13 +407,23 @@ export function Page() {
       }
     });
 
-    return list.slice(0, 8);
+    return list.slice(0, 10);
   }, [data]);
 
-  // Notification Click Handler (Requirement #25 & #26)
+  const unreadNotifications = useMemo(() => {
+    return notifications.filter((n) => !readNotifIds.has(n.id));
+  }, [notifications, readNotifIds]);
+
   const handleNotificationClick = (n: any) => {
+    setReadNotifIds((prev) => new Set(prev).add(n.id));
     setSelectedAppointment(n.rawItem);
     setShowNotifications(false);
+  };
+
+  const handleMarkAllNotifsRead = () => {
+    const allIds = new Set(readNotifIds);
+    notifications.forEach((n) => allIds.add(n.id));
+    setReadNotifIds(allIds);
   };
 
   // ---------------------------------------------------------------------------
@@ -428,19 +450,20 @@ export function Page() {
     });
   };
 
-  const handleExportData = (format: "csv" | "json" | "txt") => {
+  const handleExportData = (format: "csv" | "excel" | "json" | "pdf") => {
     if (!filteredData.length) {
       toast.error("No data to export");
       return;
     }
 
-    let content = "";
-    let mimeType = "text/plain";
-    let fileName = `appointments_export_${new Date().toISOString().split("T")[0]}.${format === "csv" ? "csv" : format}`;
+    const todayStr = new Date().toISOString().split("T")[0];
 
-    if (format === "csv") {
-      mimeType = "text/csv;charset=utf-8;";
-      const headers = ["ID", "Name", "Email", "Phone", "Service", "Preferred Date", "Preferred Time", "Status", "Source", "Created At"];
+    if (format === "csv" || format === "excel") {
+      const mimeType = format === "excel" ? "application/vnd.ms-excel;charset=utf-8;" : "text/csv;charset=utf-8;";
+      const ext = format === "excel" ? "xls" : "csv";
+      const fileName = `appointments_export_${todayStr}.${ext}`;
+
+      const headers = ["ID", "Customer Name", "Email", "Phone", "Service", "Visit Date", "Visit Time", "Status", "Source", "Created At"];
       const rows = filteredData.map((a: any) => [
         `"${a.id || ""}"`,
         `"${(a.full_name || "").replace(/"/g, '""')}"`,
@@ -448,39 +471,142 @@ export function Page() {
         `"${(a.phone || "").replace(/"/g, '""')}"`,
         `"${(a.service || "").replace(/"/g, '""')}"`,
         `"${a.preferred_date || ""}"`,
-        `"${a.preferred_time || ""}"`,
+        `"${a.preferred_time || "10:00 AM"}"`,
         `"${a.status || ""}"`,
-        `"${a.source || "Website"}"`,
+        `"${resolveApptSource(a)}"`,
         `"${a.created_at || ""}"`,
       ]);
-      content = [headers.join(","), ...rows.map((r: any) => r.join(","))].join("\n");
-    } else if (format === "json") {
-      mimeType = "application/json";
-      content = JSON.stringify(filteredData, null, 2);
-    } else {
-      content = filteredData
-        .map(
-          (a: any) =>
-            `ID: ${a.id}\nName: ${a.full_name}\nContact: ${a.email} | ${a.phone}\nService: ${a.service}\nDate: ${a.preferred_date} (${a.preferred_time || "10:00 AM"})\nStatus: ${a.status}\nSource: ${a.source || "Website"}\n----------------------------------`
-        )
-        .join("\n");
+
+      const content = [headers.join(","), ...rows.map((r: any) => r.join(","))].join("\n");
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success(`Exported ${filteredData.length} records as ${ext.toUpperCase()}`);
+      setShowExportModal(false);
+      return;
     }
 
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", fileName);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (format === "json") {
+      const content = JSON.stringify(
+        filteredData.map((a: any) => ({ ...a, source: resolveApptSource(a) })),
+        null,
+        2
+      );
+      const blob = new Blob([content], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `appointments_${todayStr}.json`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-    toast.success(`Exported ${filteredData.length} records as ${format.toUpperCase()}`);
-    setShowExportModal(false);
+      toast.success(`Exported ${filteredData.length} records as JSON`);
+      setShowExportModal(false);
+      return;
+    }
+
+    if (format === "pdf") {
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        toast.error("Please allow popups to generate PDF");
+        return;
+      }
+
+      const rowsHtml = filteredData
+        .map(
+          (a: any, idx: number) => `
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-size: 11px;">${idx + 1}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: bold;">BA-${a.id ? a.id.slice(0, 6) : "000" + (idx + 1)}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-size: 11px;">
+              <strong>${a.full_name || "Guest"}</strong><br/>
+              <span style="color: #64748b; font-size: 10px;">${a.phone || ""} | ${a.email || ""}</span>
+            </td>
+            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-size: 11px;">${a.service || "General"}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-size: 11px;">${a.preferred_date || "N/A"} (${a.preferred_time || "10:00 AM"})</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-size: 11px;">${resolveApptSource(a)}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-size: 11px; text-transform: capitalize; font-weight: bold;">${a.status}</td>
+          </tr>
+        `
+        )
+        .join("");
+
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Appointments Schedule Report - ${todayStr}</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 24px; color: #0f172a; }
+              .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #4f46e5; padding-bottom: 12px; margin-bottom: 20px; }
+              .logo { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 18px; color: #4f46e5; }
+              .title { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+              .meta { font-size: 12px; color: #64748b; margin-bottom: 16px; }
+              table { width: 100%; border-collapse: collapse; text-align: left; }
+              th { background: #f8fafc; padding: 10px 8px; font-size: 10px; font-weight: 700; uppercase; color: #475569; border-bottom: 2px solid #cbd5e1; }
+              .totals { margin-top: 20px; padding: 12px; background: #f8fafc; border-radius: 8px; font-size: 12px; display: flex; justify-content: space-between; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                <span>ADMIN PANEL</span>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 12px; font-weight: bold;">Appointments Official Report</div>
+                <div style="font-size: 10px; color: #64748b;">Generated on ${new Date().toLocaleString()}</div>
+              </div>
+            </div>
+            
+            <div class="title">Scheduled Appointments</div>
+            <div class="meta">Filter applied: Status (${activeTab}) | Total Records: ${filteredData.length}</div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Appt ID</th>
+                  <th>Customer Details</th>
+                  <th>Service</th>
+                  <th>Visit Date & Time</th>
+                  <th>Source</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+            </table>
+
+            <div class="totals">
+              <span><strong>Total Listed:</strong> ${filteredData.length}</span>
+              <span><strong>Confirmed:</strong> ${metrics.confirmed}</span>
+              <span><strong>Pending:</strong> ${metrics.pending}</span>
+              <span><strong>Completed:</strong> ${metrics.completed}</span>
+            </div>
+
+            <script>
+              window.onload = function() { window.print(); }
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      setShowExportModal(false);
+      toast.success("Print-friendly PDF generated");
+    }
   };
 
   const handlePrint = () => {
-    window.print();
+    handleExportData("pdf");
   };
 
   // ---------------------------------------------------------------------------
@@ -514,10 +640,10 @@ export function Page() {
     return days;
   }, [calendarCurrentDate]);
 
-  // Helper renderer for Source Badge (Requirement #27)
+  // Helper renderer for Source Badge
   const renderSourceBadge = (a: any) => {
-    const sourceVal = a.source || (a.internal_notes?.includes("Sophia") ? "Sophia AI" : a.internal_notes?.includes("Admin") ? "Admin Panel" : "Website");
-    
+    const sourceVal = resolveApptSource(a);
+
     if (sourceVal === "Sophia AI") {
       return (
         <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 text-purple-700 text-[10px] font-semibold border border-purple-100">
@@ -550,16 +676,24 @@ export function Page() {
     );
   };
 
+  const todayIsoStr = new Date().toISOString().split("T")[0];
+
   return (
     <div className="space-y-6 text-slate-800">
       {/* ------------------------------------------------------------------- */}
-      {/* HEADER SECTION WITH FUNCTIONAL NOTIFICATION BELL & CALENDAR BTN    */}
+      {/* HEADER SECTION WITH PROFESSIONAL LAYOUT & READ NOTIF SYSTEM         */}
       {/* ------------------------------------------------------------------- */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Appointments Dashboard</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Appointments Dashboard</h1>
+            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700">
+              <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
+              {currentUserRole}
+            </span>
+          </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage and track all customer appointments • Logged in as <span className="font-semibold text-slate-700">{currentUserRole}</span>
+            Real-time management and tracking for customer appointments and schedules
           </p>
         </div>
 
@@ -580,9 +714,9 @@ export function Page() {
               className="relative p-2 rounded-lg border border-slate-200 bg-white text-slate-600 shadow-2xs hover:bg-slate-50 transition"
             >
               <Bell className="h-4 w-4" />
-              {notifications.length > 0 && (
+              {unreadNotifications.length > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white shadow-xs">
-                  {notifications.length}
+                  {unreadNotifications.length}
                 </span>
               )}
             </button>
@@ -595,26 +729,44 @@ export function Page() {
                     <Bell className="h-4 w-4 text-indigo-600" />
                     <span className="text-xs font-bold text-slate-900">Notifications</span>
                   </div>
-                  <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
-                    {notifications.length} Unread
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {unreadNotifications.length > 0 && (
+                      <button
+                        onClick={handleMarkAllNotifsRead}
+                        className="text-[10px] font-semibold text-indigo-600 hover:underline"
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                    <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                      {unreadNotifications.length} Unread
+                    </span>
+                  </div>
                 </div>
                 <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
-                  {notifications.map((n) => (
-                    <div
-                      key={`notif-${n.id}`}
-                      onClick={() => handleNotificationClick(n)}
-                      className="p-3 hover:bg-indigo-50/50 transition text-xs cursor-pointer"
-                    >
-                      <div className="flex items-center justify-between font-semibold text-slate-900">
-                        <span>{n.title}</span>
-                        <span className="text-[10px] font-normal text-slate-400">{n.time}</span>
+                  {notifications.map((n) => {
+                    const isRead = readNotifIds.has(n.id);
+                    return (
+                      <div
+                        key={`notif-${n.id}`}
+                        onClick={() => handleNotificationClick(n)}
+                        className={`p-3 transition text-xs cursor-pointer flex items-start gap-2.5 ${
+                          isRead ? "bg-white opacity-60 hover:opacity-100" : "bg-indigo-50/40 hover:bg-indigo-50/80 font-medium"
+                        }`}
+                      >
+                        <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${isRead ? "bg-slate-300" : "bg-indigo-600"}`} />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between font-semibold text-slate-900">
+                            <span>{n.title}</span>
+                            <span className="text-[10px] font-normal text-slate-400">{n.time}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5">{n.desc}</p>
+                        </div>
                       </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">{n.desc}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {notifications.length === 0 && (
-                    <div className="p-6 text-center text-xs text-slate-400">No new notifications</div>
+                    <div className="p-6 text-center text-xs text-slate-400">No notifications</div>
                   )}
                 </div>
               </div>
@@ -704,29 +856,31 @@ export function Page() {
       </div>
 
       {/* ------------------------------------------------------------------- */}
-      {/* CONTROL BAR: TAB PILLS + INSTANT SEARCH + DATE PICKER + FILTER      */}
+      {/* CONTROL BAR: SINGLE ROW TAB PILLS + INSTANT SEARCH + FILTER        */}
       {/* ------------------------------------------------------------------- */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        {/* Quick Filter Status Tabs (Requirement #24) */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 lg:pb-0">
-          {(["all", "pending", "confirmed", "completed", "cancelled"] as const).map((tab) => (
-            <button
-              key={`tab-${tab}`}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition whitespace-nowrap ${
-                activeTab === tab
-                  ? "bg-indigo-600 text-white shadow-2xs"
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
+        {/* Strict Single Row Horizontal Scroll Tab Bar */}
+        <div className="w-full lg:w-auto overflow-x-auto no-scrollbar py-0.5">
+          <div className="flex items-center gap-1.5 min-w-max">
+            {(["all", "pending", "confirmed", "completed", "cancelled"] as const).map((tab) => (
+              <button
+                key={`tab-${tab}`}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition whitespace-nowrap shrink-0 ${
+                  activeTab === tab
+                    ? "bg-indigo-600 text-white shadow-2xs"
+                    : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Search & Date Range Picker & Filter Menu */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Functional Date Range Inputs (Requirement #21) */}
+          {/* Functional Date Range Inputs */}
           <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-600">
             <span className="text-[10px] font-bold text-slate-400 uppercase">From:</span>
             <input
@@ -781,7 +935,7 @@ export function Page() {
               Filters
             </button>
 
-            {/* Filter Menu Popover (Requirement #22, #23) */}
+            {/* Filter Menu Popover */}
             {showFilterMenu && (
               <div className="absolute right-0 mt-2 w-64 rounded-xl bg-white border border-slate-200 shadow-xl z-50 p-4 space-y-3.5 text-xs">
                 <div className="font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center justify-between">
@@ -917,7 +1071,7 @@ export function Page() {
                       </div>
                     </td>
 
-                    {/* Service Column (Strict Single Line) */}
+                    {/* Service Column */}
                     <td className="px-3.5 py-3 max-w-[180px] whitespace-nowrap">
                       <div className="flex items-center gap-1.5 truncate">
                         <Home className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
@@ -947,7 +1101,7 @@ export function Page() {
                       </div>
                     </td>
 
-                    {/* Source (Requirement #27) */}
+                    {/* Dynamic Source */}
                     <td className="px-3.5 py-3 whitespace-nowrap">
                       {renderSourceBadge(a)}
                     </td>
@@ -1027,7 +1181,6 @@ export function Page() {
         <Card className="p-4 border-slate-200/90 shadow-2xs space-y-3">
           <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Status Summary</h3>
           <div className="space-y-2.5 text-xs">
-            {/* Pending Bar */}
             <div>
               <div className="flex justify-between text-slate-600 font-medium mb-1">
                 <span>Pending</span>
@@ -1040,7 +1193,6 @@ export function Page() {
               </div>
             </div>
 
-            {/* Confirmed Bar */}
             <div>
               <div className="flex justify-between text-slate-600 font-medium mb-1">
                 <span>Confirmed</span>
@@ -1053,7 +1205,6 @@ export function Page() {
               </div>
             </div>
 
-            {/* Cancelled Bar */}
             <div>
               <div className="flex justify-between text-slate-600 font-medium mb-1">
                 <span>Cancelled</span>
@@ -1113,44 +1264,49 @@ export function Page() {
       </div>
 
       {/* ------------------------------------------------------------------- */}
-      {/* MODAL 1: FULLY WORKING MONTH/WEEK/DAY CALENDAR                     */}
+      {/* MODAL 1: HIGH-END PROFESSIONAL SCHEDULING CALENDAR                  */}
       {/* ------------------------------------------------------------------- */}
       {showCalendarModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden">
-            {/* Calendar Modal Header */}
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-6 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-5xl w-full shadow-2xl border border-slate-200 overflow-hidden my-auto">
+            {/* Calendar Header */}
+            <div className="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/80">
               <div className="flex items-center gap-3">
-                <CalendarDays className="h-5 w-5 text-indigo-600" />
-                <h3 className="font-bold text-slate-900 text-sm">Appointment Calendar</h3>
+                <div className="p-2 rounded-xl bg-indigo-600 text-white shadow-xs">
+                  <CalendarDays className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Scheduling Calendar</h3>
+                  <p className="text-[11px] text-slate-500">Interactive timeline and booking scheduler</p>
+                </div>
               </div>
+
               <div className="flex items-center gap-2">
-                {/* View Mode Buttons (Requirements #1, #2, #3, #4) */}
-                <div className="flex bg-slate-200 p-0.5 rounded-lg text-[10px] font-bold">
+                <div className="flex bg-slate-200/80 p-1 rounded-xl text-xs font-bold border border-slate-200">
                   {(["month", "week", "day"] as const).map((m) => (
                     <button
                       key={`cal-mode-${m}`}
                       onClick={() => setCalendarViewMode(m)}
-                      className={`px-2.5 py-1 rounded-md capitalize transition ${
-                        calendarViewMode === m ? "bg-white text-slate-900 shadow-2xs" : "text-slate-600"
+                      className={`px-3 py-1 rounded-lg capitalize transition ${
+                        calendarViewMode === m ? "bg-white text-indigo-600 shadow-2xs font-extrabold" : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
-                      {m} View
+                      {m}
                     </button>
                   ))}
                 </div>
                 <button
                   onClick={() => setShowCalendarModal(false)}
-                  className="p-1 text-slate-400 hover:text-slate-600"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
             </div>
 
-            {/* Calendar Controls */}
-            <div className="p-4 flex items-center justify-between border-b border-slate-100 text-xs">
-              <div className="font-bold text-slate-800 text-sm">
+            {/* Navigation Control Bar */}
+            <div className="p-3.5 flex items-center justify-between border-b border-slate-100 bg-white">
+              <div className="font-black text-slate-900 text-base tracking-tight">
                 {calendarViewMode === "month" &&
                   calendarCurrentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
                 {calendarViewMode === "week" &&
@@ -1158,42 +1314,46 @@ export function Page() {
                 {calendarViewMode === "day" &&
                   calendarCurrentDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => {
-                    const offset = calendarViewMode === "month" ? -1 : calendarViewMode === "week" ? -7 : -1;
-                    const unit = calendarViewMode === "month" ? "month" : "day";
-                    if (unit === "month") {
+                    if (calendarViewMode === "month") {
                       setCalendarCurrentDate(new Date(calendarCurrentDate.getFullYear(), calendarCurrentDate.getMonth() - 1, 1));
+                    } else if (calendarViewMode === "week") {
+                      const d = new Date(calendarCurrentDate);
+                      d.setDate(d.getDate() - 7);
+                      setCalendarCurrentDate(d);
                     } else {
                       const d = new Date(calendarCurrentDate);
-                      d.setDate(d.getDate() + offset);
+                      d.setDate(d.getDate() - 1);
                       setCalendarCurrentDate(d);
                     }
                   }}
-                  className="p-1 rounded border border-slate-200 hover:bg-slate-50"
+                  className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => setCalendarCurrentDate(new Date())}
-                  className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-50 font-semibold"
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700"
                 >
                   Today
                 </button>
                 <button
                   onClick={() => {
-                    const offset = calendarViewMode === "month" ? 1 : calendarViewMode === "week" ? 7 : 1;
-                    const unit = calendarViewMode === "month" ? "month" : "day";
-                    if (unit === "month") {
+                    if (calendarViewMode === "month") {
                       setCalendarCurrentDate(new Date(calendarCurrentDate.getFullYear(), calendarCurrentDate.getMonth() + 1, 1));
+                    } else if (calendarViewMode === "week") {
+                      const d = new Date(calendarCurrentDate);
+                      d.setDate(d.getDate() + 7);
+                      setCalendarCurrentDate(d);
                     } else {
                       const d = new Date(calendarCurrentDate);
-                      d.setDate(d.getDate() + offset);
+                      d.setDate(d.getDate() + 1);
                       setCalendarCurrentDate(d);
                     }
                   }}
-                  className="p-1 rounded border border-slate-200 hover:bg-slate-50"
+                  className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
@@ -1202,32 +1362,54 @@ export function Page() {
 
             {/* MONTH VIEW GRID */}
             {calendarViewMode === "month" && (
-              <div className="p-4">
-                <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-slate-400 uppercase mb-2">
-                  <span>Sun</span>
-                  <span>Mon</span>
-                  <span>Tue</span>
-                  <span>Wed</span>
-                  <span>Thu</span>
-                  <span>Fri</span>
-                  <span>Sat</span>
+              <div className="p-4 bg-slate-50/50">
+                <div className="grid grid-cols-7 gap-1.5 text-center text-[11px] font-extrabold uppercase tracking-wider mb-2">
+                  <span className="text-slate-400">Sun</span>
+                  <span className="text-slate-600">Mon</span>
+                  <span className="text-slate-600">Tue</span>
+                  <span className="text-slate-600">Wed</span>
+                  <span className="text-slate-600">Thu</span>
+                  <span className="text-slate-600">Fri</span>
+                  <span className="text-slate-400">Sat</span>
                 </div>
-                <div className="grid grid-cols-7 gap-1">
+                <div className="grid grid-cols-7 gap-1.5">
                   {calendarDays.map((day, idx) => {
-                    if (!day) return <div key={`empty-${idx}`} className="h-20 bg-slate-50/50 rounded-lg" />;
+                    if (!day) return <div key={`empty-${idx}`} className="h-24 bg-slate-100/40 rounded-xl border border-dashed border-slate-200/60" />;
                     const year = day.getFullYear();
                     const month = String(day.getMonth() + 1).padStart(2, "0");
                     const dateNum = String(day.getDate()).padStart(2, "0");
                     const dateStr = `${year}-${month}-${dateNum}`;
                     const dayAppts = data.filter((a: any) => a.preferred_date === dateStr);
+                    const isToday = dateStr === todayIsoStr;
+                    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
 
                     return (
                       <div
                         key={`mday-${dateStr}-${idx}`}
-                        className="h-20 border border-slate-100 rounded-lg p-1.5 flex flex-col justify-between hover:bg-slate-50 transition"
+                        className={`h-24 rounded-xl p-1.5 flex flex-col justify-between transition border ${
+                          isToday
+                            ? "bg-indigo-50/70 border-indigo-300 ring-2 ring-indigo-500/20"
+                            : isWeekend
+                            ? "bg-slate-100/60 border-slate-200/80"
+                            : "bg-white border-slate-200/90 hover:border-slate-300"
+                        }`}
                       >
-                        <span className="text-[10px] font-bold text-slate-700">{day.getDate()}</span>
-                        <div className="space-y-0.5 overflow-hidden">
+                        <div className="flex items-center justify-between">
+                          <span
+                            className={`text-xs font-black rounded-full h-5 w-5 flex items-center justify-center ${
+                              isToday ? "bg-indigo-600 text-white shadow-xs" : "text-slate-700"
+                            }`}
+                          >
+                            {day.getDate()}
+                          </span>
+                          {dayAppts.length > 0 && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700">
+                              {dayAppts.length}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="space-y-1 overflow-hidden">
                           {dayAppts.slice(0, 2).map((a: any) => (
                             <div
                               key={`cal-item-${a.id}`}
@@ -1235,13 +1417,19 @@ export function Page() {
                                 setSelectedAppointment(a);
                                 setShowCalendarModal(false);
                               }}
-                              className="text-[9px] truncate bg-indigo-50 text-indigo-700 font-semibold px-1 py-0.5 rounded cursor-pointer hover:bg-indigo-100"
+                              className={`text-[9px] truncate font-bold px-1.5 py-0.5 rounded-md border cursor-pointer transition ${
+                                a.status === "confirmed"
+                                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                  : a.status === "pending"
+                                  ? "bg-amber-50 text-amber-800 border-amber-200"
+                                  : "bg-slate-100 text-slate-800 border-slate-200"
+                              }`}
                             >
-                              {a.full_name || "Appt"}
+                              {a.preferred_time || "10:00"} {a.full_name || "Appt"}
                             </div>
                           ))}
                           {dayAppts.length > 2 && (
-                            <div className="text-[8px] font-bold text-slate-400 text-center">
+                            <div className="text-[9px] font-extrabold text-indigo-600 text-center">
                               +{dayAppts.length - 2} more
                             </div>
                           )}
@@ -1255,25 +1443,39 @@ export function Page() {
 
             {/* WEEK VIEW GRID */}
             {calendarViewMode === "week" && (
-              <div className="p-4">
-                <div className="grid grid-cols-7 gap-2 text-center text-[11px] font-bold text-slate-500 mb-2">
-                  {calendarWeekDays.map((wDay, idx) => (
-                    <div key={`wk-head-${idx}`} className="p-1 rounded bg-slate-50 border border-slate-100">
-                      <div>{wDay.toLocaleDateString("en-US", { weekday: "short" })}</div>
-                      <div className="text-slate-900 font-black">{wDay.getDate()}</div>
-                    </div>
-                  ))}
+              <div className="p-4 bg-slate-50/50">
+                <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold mb-3">
+                  {calendarWeekDays.map((wDay, idx) => {
+                    const wIso = wDay.toISOString().split("T")[0];
+                    const isToday = wIso === todayIsoStr;
+                    return (
+                      <div
+                        key={`wk-head-${idx}`}
+                        className={`p-2 rounded-xl border ${
+                          isToday ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs" : "bg-white text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        <div className="text-[10px] uppercase font-semibold opacity-80">
+                          {wDay.toLocaleDateString("en-US", { weekday: "short" })}
+                        </div>
+                        <div className="text-base font-black">{wDay.getDate()}</div>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="grid grid-cols-7 gap-2">
                   {calendarWeekDays.map((wDay, idx) => {
-                    const year = wDay.getFullYear();
-                    const month = String(wDay.getMonth() + 1).padStart(2, "0");
-                    const dateNum = String(wDay.getDate()).padStart(2, "0");
-                    const dateStr = `${year}-${month}-${dateNum}`;
+                    const dateStr = wDay.toISOString().split("T")[0];
                     const dayAppts = data.filter((a: any) => a.preferred_date === dateStr);
+                    const isWeekend = wDay.getDay() === 0 || wDay.getDay() === 6;
 
                     return (
-                      <div key={`wk-col-${dateStr}-${idx}`} className="min-h-48 border border-slate-100 rounded-lg p-1.5 bg-slate-50/30 space-y-1">
+                      <div
+                        key={`wk-col-${dateStr}-${idx}`}
+                        className={`min-h-60 rounded-xl p-2 border space-y-1.5 ${
+                          isWeekend ? "bg-slate-100/60 border-slate-200/80" : "bg-white border-slate-200"
+                        }`}
+                      >
                         {dayAppts.map((a: any) => (
                           <div
                             key={`wk-appt-${a.id}`}
@@ -1281,14 +1483,14 @@ export function Page() {
                               setSelectedAppointment(a);
                               setShowCalendarModal(false);
                             }}
-                            className="text-[10px] p-1.5 rounded-md bg-white border border-indigo-100 shadow-2xs cursor-pointer hover:bg-indigo-50"
+                            className="text-[10px] p-2 rounded-lg bg-indigo-50/80 border border-indigo-200 shadow-2xs cursor-pointer hover:bg-indigo-100 transition"
                           >
-                            <div className="font-bold text-indigo-900 truncate">{a.full_name || "Guest"}</div>
-                            <div className="text-[9px] text-slate-500 truncate">{a.preferred_time || "10:00 AM"}</div>
+                            <div className="font-bold text-indigo-950 truncate">{a.full_name || "Guest"}</div>
+                            <div className="text-[9px] text-indigo-700 font-semibold">{a.preferred_time || "10:00 AM"}</div>
                           </div>
                         ))}
                         {dayAppts.length === 0 && (
-                          <div className="text-[9px] text-slate-300 text-center pt-4">No Appts</div>
+                          <div className="text-[10px] font-medium text-slate-300 text-center pt-8">No appts</div>
                         )}
                       </div>
                     );
@@ -1299,16 +1501,17 @@ export function Page() {
 
             {/* DAY VIEW GRID */}
             {calendarViewMode === "day" && (
-              <div className="p-4 max-h-96 overflow-y-auto space-y-2">
+              <div className="p-4 max-h-96 overflow-y-auto space-y-2.5 bg-slate-50/50">
                 {(() => {
-                  const year = calendarCurrentDate.getFullYear();
-                  const month = String(calendarCurrentDate.getMonth() + 1).padStart(2, "0");
-                  const dateNum = String(calendarCurrentDate.getDate()).padStart(2, "0");
-                  const dateStr = `${year}-${month}-${dateNum}`;
+                  const dateStr = calendarCurrentDate.toISOString().split("T")[0];
                   const dayAppts = data.filter((a: any) => a.preferred_date === dateStr);
 
                   if (dayAppts.length === 0) {
-                    return <div className="text-center py-12 text-slate-400 text-xs">No appointments scheduled for this date.</div>;
+                    return (
+                      <div className="text-center py-16 text-slate-400 text-xs font-semibold">
+                        No appointments scheduled for this date.
+                      </div>
+                    );
                   }
 
                   return dayAppts.map((a: any) => (
@@ -1318,10 +1521,10 @@ export function Page() {
                         setSelectedAppointment(a);
                         setShowCalendarModal(false);
                       }}
-                      className="p-3 rounded-xl border border-slate-200 bg-white shadow-2xs hover:border-indigo-300 transition cursor-pointer flex items-center justify-between"
+                      className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-2xs hover:border-indigo-400 transition cursor-pointer flex items-center justify-between"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600 font-bold text-xs">
+                        <div className="px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 font-extrabold text-xs">
                           {a.preferred_time || "10:00 AM"}
                         </div>
                         <div>
@@ -1329,9 +1532,12 @@ export function Page() {
                           <p className="text-[11px] text-slate-500">{a.service || "General Service"}</p>
                         </div>
                       </div>
-                      <span className="capitalize px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
-                        {a.status}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {renderSourceBadge(a)}
+                        <span className="capitalize px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                          {a.status}
+                        </span>
+                      </div>
                     </div>
                   ));
                 })()}
@@ -1342,7 +1548,7 @@ export function Page() {
       )}
 
       {/* ------------------------------------------------------------------- */}
-      {/* MODAL 2: FUNCTIONAL ADD NEW APPOINTMENT                             */}
+      {/* MODAL 2: FUNCTIONAL ADD NEW APPOINTMENT WITH DATE/TIME PICKERS     */}
       {/* ------------------------------------------------------------------- */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
@@ -1388,7 +1594,7 @@ export function Page() {
                 </div>
               </div>
 
-              {/* Searchable Service Dropdown (Requirements #9, #10) */}
+              {/* Service Dropdown */}
               <div className="relative" ref={serviceDropdownRef}>
                 <label className="block font-bold text-slate-600 mb-1">Service Requested</label>
                 <div
@@ -1439,24 +1645,31 @@ export function Page() {
                 )}
               </div>
 
+              {/* Fully Working Native Date & Time Pickers */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block font-bold text-slate-600 mb-1">Preferred Date</label>
+                  <label className="block font-bold text-slate-600 mb-1">Preferred Date *</label>
                   <input
                     type="date"
+                    required
                     value={newAppt.preferred_date}
                     onChange={(e) => setNewAppt({ ...newAppt, preferred_date: e.target.value })}
-                    className="w-full rounded-lg border border-slate-200 p-2 text-xs"
+                    className="w-full rounded-lg border border-slate-200 p-2 text-xs bg-white text-slate-900 font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-600 mb-1">Preferred Time</label>
-                  <input
-                    type="text"
+                  <label className="block font-bold text-slate-600 mb-1">Preferred Time *</label>
+                  <select
                     value={newAppt.preferred_time}
                     onChange={(e) => setNewAppt({ ...newAppt, preferred_time: e.target.value })}
-                    className="w-full rounded-lg border border-slate-200 p-2 text-xs"
-                  />
+                    className="w-full rounded-lg border border-slate-200 p-2 text-xs bg-white text-slate-900 font-medium"
+                  >
+                    {["09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM"].map((t) => (
+                      <option key={`time-opt-${t}`} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -1486,7 +1699,6 @@ export function Page() {
                 />
               </div>
 
-              {/* Automatically display Created By (Requirement #28) */}
               <div className="p-2 rounded-lg bg-slate-50 border border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
                 <span>Created By:</span>
                 <span className="font-bold text-slate-800 flex items-center gap-1">
@@ -1534,21 +1746,28 @@ export function Page() {
                 className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 font-semibold text-slate-800 transition"
               >
                 <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
-                <span>Export as CSV / Excel</span>
+                <span>Export Complete CSV</span>
+              </button>
+              <button
+                onClick={() => handleExportData("excel")}
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 font-semibold text-slate-800 transition"
+              >
+                <FileSpreadsheet className="h-5 w-5 text-teal-600" />
+                <span>Export Complete Excel (.xls)</span>
+              </button>
+              <button
+                onClick={() => handleExportData("pdf")}
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 font-semibold text-slate-800 transition"
+              >
+                <FileText className="h-5 w-5 text-indigo-600" />
+                <span>Generate Professional PDF</span>
               </button>
               <button
                 onClick={() => handleExportData("json")}
                 className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 font-semibold text-slate-800 transition"
               >
-                <FileCode className="h-5 w-5 text-indigo-600" />
-                <span>Export as JSON Data</span>
-              </button>
-              <button
-                onClick={() => handleExportData("txt")}
-                className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 font-semibold text-slate-800 transition"
-              >
-                <FileText className="h-5 w-5 text-blue-600" />
-                <span>Export as PDF / Text Summary</span>
+                <FileCode className="h-5 w-5 text-blue-600" />
+                <span>Export JSON Data</span>
               </button>
               <button
                 onClick={handlePrint}

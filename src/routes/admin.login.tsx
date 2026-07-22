@@ -91,7 +91,7 @@ function LoginPage() {
         console.log("[Login Flow] Verified local storage session status:", !!verifiedSession.data.session);
 
         console.log("[Login Flow] 6. Triggering navigate to /admin...");
-        navigate({ to: "/admin" });
+        navigate({ to: "/admin/users" });
       } else {
         console.error("[Login Flow] Error: No session structure returned in successful auth payload.");
         toast.error("Authentication succeeded, but active session was not generated.");

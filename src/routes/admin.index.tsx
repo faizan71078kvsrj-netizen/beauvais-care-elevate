@@ -18,7 +18,11 @@ import {
   User,
   Settings as EditIcon,
   LogOut,
-  Camera
+  Camera,
+  CheckCircle2,
+  AlertCircle,
+  XCircle,
+  X
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -78,9 +82,16 @@ function AdminDashboard() {
     email: "",
     avatarUrl: null
   });
+  
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
+
+  // Profile Modal State
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editFullName, setEditFullName] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
 
   // Live Statistics
   const [stats, setStats] = useState({
@@ -123,6 +134,7 @@ function AdminDashboard() {
               email: authUser.user.email || "",
               avatarUrl: profile?.avatar_url || null
             });
+            setEditFullName(profile?.full_name || authUser.user.user_metadata?.full_name || authUser.user.email?.split("@")[0] || "User");
           }
         }
 
@@ -286,7 +298,7 @@ function AdminDashboard() {
 
     try {
       const fileExt = file.name.split('.').pop();
-      const filePath = `${userProfile.id}/avatar.${fileExt}`;
+      const filePath = `${userProfile.id}/avatar-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
@@ -311,9 +323,34 @@ function AdminDashboard() {
     }
   };
 
+  const saveProfileDetails = async () => {
+    if (!userProfile.id || !editFullName.trim()) return;
+    setSavingProfile(true);
+    try {
+      await supabase
+        .from('profiles')
+        .update({ full_name: editFullName.trim() })
+        .eq('id', userProfile.id);
+      
+      setUserProfile((prev) => ({ ...prev, fullName: editFullName.trim() }));
+      setIsEditMode(false);
+    } catch (error) {
+      console.error("Failed to update profile", error);
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const openProfile = (edit = false) => {
+    setIsEditMode(edit);
+    setEditFullName(userProfile.fullName);
+    setIsProfileModalOpen(true);
+    setProfileDropdownOpen(false);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-[70vh] grid place-items-center bg-transparent">
+      <div className="w-full h-[70vh] grid place-items-center bg-transparent">
         <div className="flex items-center gap-3 text-slate-500 text-sm font-medium">
           <Loader2 className="h-5 w-5 animate-spin text-sky-600" /> Syncing Dashboard Analytics...
         </div>
@@ -322,7 +359,7 @@ function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-6 text-slate-800">
+    <div className="w-full p-4 md:p-8 space-y-6 text-slate-800 bg-[#F8FAFC]">
       {/* 1. Header Section */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200/60">
         <div>
@@ -371,7 +408,7 @@ function AdminDashboard() {
               <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-4 space-y-3">
                 <div className="flex items-center justify-between border-b pb-2">
                   <span className="text-xs font-bold text-slate-900">Notifications</span>
-                  <span className="text-[10px] text-sky-600 font-semibold">{notifications.length} Unread</span>
+                  <span className="text-[10px] text-sky-600 font-semibold">{notifications.length} Alerts</span>
                 </div>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
                   {notifications.length > 0 ? (
@@ -419,21 +456,21 @@ function AdminDashboard() {
                   <div className="text-[10px] text-slate-400">{userProfile.email}</div>
                 </div>
 
-                <label className="flex items-center gap-2 px-4 py-2 text-slate-700 hover:bg-slate-50 cursor-pointer">
-                  <Camera className="h-3.5 w-3.5 text-slate-500" />
-                  <span>Upload / Change Picture</span>
-                  <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
-                </label>
-
-                <button onClick={() => navigate({ to: "/admin/users" })} className="w-full text-left flex items-center gap-2 px-4 py-2 text-slate-700 hover:bg-slate-50">
+                <button onClick={() => openProfile(false)} className="w-full text-left flex items-center gap-2 px-4 py-2 text-slate-700 hover:bg-slate-50">
                   <User className="h-3.5 w-3.5 text-slate-500" />
-                  <span>View Profile</span>
+                  <span>My Profile</span>
                 </button>
 
-                <button onClick={() => navigate({ to: "/admin/users" })} className="w-full text-left flex items-center gap-2 px-4 py-2 text-slate-700 hover:bg-slate-50">
+                <button onClick={() => openProfile(true)} className="w-full text-left flex items-center gap-2 px-4 py-2 text-slate-700 hover:bg-slate-50">
                   <EditIcon className="h-3.5 w-3.5 text-slate-500" />
                   <span>Edit Profile</span>
                 </button>
+
+                <label className="flex items-center gap-2 px-4 py-2 text-slate-700 hover:bg-slate-50 cursor-pointer">
+                  <Camera className="h-3.5 w-3.5 text-slate-500" />
+                  <span>Upload Picture</span>
+                  <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+                </label>
 
                 <div className="border-t border-slate-100 my-1"></div>
 
@@ -447,7 +484,102 @@ function AdminDashboard() {
         </div>
       </header>
 
-      {/* 2. Top Live Statistics Cards */}
+      {/* Profile Modal Overlay */}
+      {isProfileModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100">
+              <h2 className="text-sm font-bold text-slate-900">{isEditMode ? "Edit Profile" : "My Profile"}</h2>
+              <button onClick={() => setIsProfileModalOpen(false)} className="p-1 text-slate-400 hover:bg-slate-100 rounded-lg transition">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div className="flex flex-col items-center gap-3">
+                <div className="relative group">
+                  {userProfile.avatarUrl ? (
+                    <img src={userProfile.avatarUrl} alt="Profile" className="h-20 w-20 rounded-full object-cover shadow-sm border-4 border-white" />
+                  ) : (
+                    <div className="h-20 w-20 rounded-full bg-gradient-to-br from-sky-400 to-emerald-400 text-white font-bold text-2xl flex items-center justify-center shadow-sm border-4 border-white">
+                      {userProfile.fullName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  {isEditMode && (
+                    <label className="absolute inset-0 bg-slate-900/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 cursor-pointer transition">
+                      <Camera className="h-6 w-6" />
+                      <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+                    </label>
+                  )}
+                </div>
+                {!isEditMode && (
+                  <div className="text-center">
+                    <h3 className="text-lg font-bold text-slate-900">{userProfile.fullName}</h3>
+                    <p className="text-xs text-slate-500">{userProfile.email}</p>
+                    <span className="mt-2 inline-block px-2.5 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[10px] font-semibold uppercase tracking-wide">
+                      {userProfile.role}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {isEditMode && (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Full Name</label>
+                    <input
+                      type="text"
+                      value={editFullName}
+                      onChange={(e) => setEditFullName(e.target.value)}
+                      className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Email (Read Only)</label>
+                    <input
+                      type="email"
+                      value={userProfile.email}
+                      disabled
+                      className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-500 cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {isEditMode && (
+              <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+                <button
+                  onClick={() => setIsEditMode(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveProfileDetails}
+                  disabled={savingProfile || !editFullName.trim()}
+                  className="px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-lg transition disabled:opacity-50 flex items-center gap-2"
+                >
+                  {savingProfile ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                  Save Changes
+                </button>
+              </div>
+            )}
+            {!isEditMode && (
+              <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+                <button
+                  onClick={() => setIsEditMode(true)}
+                  className="px-4 py-2 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-lg transition"
+                >
+                  Edit Profile
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 2. Top Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Appointments */}
         <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-start justify-between">
@@ -456,26 +588,11 @@ function AdminDashboard() {
             <div className="text-2xl font-bold text-slate-900">{stats.totalAppointments}</div>
             <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium pt-1">
               <TrendingUp className="h-3 w-3" />
-              <span>Live DB synced</span>
+              <span>Live Database</span>
             </div>
           </div>
           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
             <Calendar className="h-5 w-5" />
-          </div>
-        </div>
-
-        {/* Total Leads */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-start justify-between">
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-slate-500">Total Leads</span>
-            <div className="text-2xl font-bold text-slate-900">{stats.totalLeads}</div>
-            <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium pt-1">
-              <TrendingUp className="h-3 w-3" />
-              <span>Live DB synced</span>
-            </div>
-          </div>
-          <div className="p-3 bg-sky-50 text-sky-600 rounded-xl">
-            <Users className="h-5 w-5" />
           </div>
         </div>
 
@@ -494,18 +611,64 @@ function AdminDashboard() {
           </div>
         </div>
 
+        {/* Total Leads */}
+        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-start justify-between">
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-slate-500">Total Leads</span>
+            <div className="text-2xl font-bold text-slate-900">{stats.totalLeads}</div>
+            <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium pt-1">
+              <Users className="h-3 w-3" />
+              <span>Live Database</span>
+            </div>
+          </div>
+          <div className="p-3 bg-sky-50 text-sky-600 rounded-xl">
+            <Users className="h-5 w-5" />
+          </div>
+        </div>
+
         {/* Conversion Rate */}
         <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-start justify-between">
           <div className="space-y-1">
             <span className="text-xs font-medium text-slate-500">Conversion Rate</span>
             <div className="text-2xl font-bold text-slate-900">{stats.conversionRate}%</div>
             <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium pt-1">
-              <TrendingUp className="h-3 w-3" />
+              <BarChart3 className="h-3 w-3" />
               <span>Completed Ratio</span>
             </div>
           </div>
           <div className="p-3 bg-teal-50 text-teal-600 rounded-xl">
             <BarChart3 className="h-5 w-5" />
+          </div>
+        </div>
+      </div>
+
+      {/* Detailed Status Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg"><CheckCircle2 className="h-5 w-5" /></div>
+            <div>
+              <p className="text-xs font-medium text-slate-500">Completed</p>
+              <p className="text-lg font-bold text-slate-900">{stats.completedAppointments}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg"><AlertCircle className="h-5 w-5" /></div>
+            <div>
+              <p className="text-xs font-medium text-slate-500">Pending</p>
+              <p className="text-lg font-bold text-slate-900">{stats.pendingAppointments}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-red-50 text-red-600 rounded-lg"><XCircle className="h-5 w-5" /></div>
+            <div>
+              <p className="text-xs font-medium text-slate-500">Cancelled</p>
+              <p className="text-lg font-bold text-slate-900">{stats.cancelledAppointments}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -565,22 +728,6 @@ function AdminDashboard() {
               <div className="text-[10px] text-slate-400 font-medium">Total</div>
             </div>
           </div>
-
-          {/* Status Breakdown Indicators */}
-          <div className="flex items-center justify-around border-t border-slate-100 pt-3 text-xs">
-            <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-              <span className="text-slate-600 font-medium">Completed ({stats.completedAppointments})</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
-              <span className="text-slate-600 font-medium">Pending ({stats.pendingAppointments})</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
-              <span className="text-slate-600 font-medium">Cancelled ({stats.cancelledAppointments})</span>
-            </div>
-          </div>
         </div>
 
         {/* 4. Upcoming Appointments */}
@@ -634,7 +781,7 @@ function AdminDashboard() {
         <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-slate-900">Recent Contacts / Leads</h3>
-            <Link to="/admin/leads" className="text-xs text-sky-600 hover:underline font-medium">
+            <Link to="/admin/contacts" className="text-xs text-sky-600 hover:underline font-medium">
               View All
             </Link>
           </div>
@@ -711,7 +858,7 @@ function AdminDashboard() {
 
             {/* Add Lead */}
             <button
-              onClick={() => navigate({ to: "/admin/leads" })}
+              onClick={() => navigate({ to: "/admin/contacts" })}
               className="flex flex-col items-center justify-center p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-emerald-50 hover:border-emerald-200 transition group text-center"
             >
               <div className="p-2 bg-white rounded-lg text-emerald-600 shadow-sm mb-1.5 group-hover:scale-105 transition">
@@ -722,7 +869,7 @@ function AdminDashboard() {
 
             {/* Open Calendar */}
             <button
-              onClick={() => navigate({ to: "/admin/appointments" })}
+              onClick={() => navigate({ to: "/admin/calendar" })}
               className="flex flex-col items-center justify-center p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-200 transition group text-center"
             >
               <div className="p-2 bg-white rounded-lg text-indigo-600 shadow-sm mb-1.5 group-hover:scale-105 transition">
@@ -733,7 +880,7 @@ function AdminDashboard() {
 
             {/* View Reports */}
             <button
-              onClick={() => navigate({ to: "/admin/appointments" })}
+              onClick={() => navigate({ to: "/admin/reports" })}
               className="flex flex-col items-center justify-center p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-amber-50 hover:border-amber-200 transition group text-center"
             >
               <div className="p-2 bg-white rounded-lg text-amber-600 shadow-sm mb-1.5 group-hover:scale-105 transition">
@@ -742,29 +889,6 @@ function AdminDashboard() {
               <span className="text-xs font-medium text-slate-700">View Reports</span>
             </button>
           </div>
-        </div>
-      </div>
-
-      {/* 6. Recent Activity Log */}
-      <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm">
-        <h3 className="text-sm font-semibold text-slate-900 mb-3">Activity Log</h3>
-
-        <div className="space-y-2">
-          {recentActivities.length > 0 ? (
-            recentActivities.map((act) => (
-              <div key={act.id} className="flex items-center justify-between p-2.5 bg-slate-50/60 rounded-lg text-xs border border-slate-100">
-                <div className="flex items-center gap-3">
-                  <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold ${act.badgeColor}`}>
-                    {act.type}
-                  </span>
-                  <span className="text-slate-700 font-medium">{act.details}</span>
-                </div>
-                <span className="text-[10px] text-slate-400">{act.time}</span>
-              </div>
-            ))
-          ) : (
-            <div className="text-xs text-slate-400 text-center py-4">No recent system activity recorded.</div>
-          )}
         </div>
       </div>
     </div>

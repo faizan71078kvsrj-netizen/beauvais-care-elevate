@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AdminGate, Card } from "@/components/admin/shell";
+import { Card } from "@/components/admin/shell";
 import { listAppointments, updateAppointment, deleteAppointment } from "@/lib/admin/api.functions";
 import { toast } from "sonner";
 import {
@@ -33,11 +33,7 @@ import {
 
 export const Route = createFileRoute("/admin/appointments")({
   head: () => ({ meta: [{ title: "Appointments · Admin" }, { name: "robots", content: "noindex,nofollow" }] }),
-  component: () => (
-    <AdminGate>
-      <Page />
-    </AdminGate>
-  ),
+  component: () => <Page />,
 });
 
 const STATUSES = ["pending", "confirmed", "completed", "cancelled"] as const;

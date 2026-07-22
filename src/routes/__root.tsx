@@ -1,3 +1,4 @@
+// src/routes/__root.tsx
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -10,6 +11,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { SophiaChat } from "@/components/sophia-chat";
+import { AdminGate } from "./shell"; // <-- import AdminGate
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -90,9 +92,20 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  // Determine if we are on an admin route (excluding login)
+  const isAdminRoute = pathname.startsWith("/admin") && !pathname.startsWith("/admin/login");
+
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      {isAdminRoute ? (
+        <AdminGate>
+          <Outlet />
+        </AdminGate>
+      ) : (
+        <Outlet />
+      )}
       <SophiaMount />
     </QueryClientProvider>
   );

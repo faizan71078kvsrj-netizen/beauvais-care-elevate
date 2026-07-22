@@ -1,8 +1,13 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card } from "@/components/admin/shell";
-import { listAppointments, updateAppointment, deleteAppointment } from "@/lib/admin/api.functions";
+import { AdminGate, Card } from "@/components/admin/shell";
+import {
+  listAppointments,
+  createAppointment,
+  updateAppointment,
+  deleteAppointment,
+} from "@/lib/admin/api.functions";
 import { toast } from "sonner";
 import {
   Calendar as CalendarIcon,
@@ -18,7 +23,6 @@ import {
   Plus,
   Download,
   CalendarDays,
-  Sparkles,
   Bell,
   X,
   ChevronLeft,
@@ -27,19 +31,28 @@ import {
   FileText,
   FileCode,
   TrendingUp,
-  AlertCircle,
-  UserCheck,
+  Printer,
+  ShieldCheck,
+  Globe,
+  Monitor,
+  Cpu,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/appointments")({
   head: () => ({ meta: [{ title: "Appointments · Admin" }, { name: "robots", content: "noindex,nofollow" }] }),
-  component: () => <Page />,
+  component: () => (
+    <AdminGate>
+      <Page />
+    </AdminGate>
+  ),
 });
 
 const STATUSES = ["pending", "confirmed", "completed", "cancelled"] as const;
 type StatusType = (typeof STATUSES)[number];
 
-function Page() {
+const SOURCES = ["Website", "Sophia AI", "Admin Panel", "API"] as const;
+
+export function Page() {
   const qc = useQueryClient();
   const { data = [] } = useQuery({ queryKey: ["appointments"], queryFn: () => listAppointments() });
 
@@ -66,19 +79,30 @@ function Page() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
 
+  // Service Dropdown state inside Add Modal
+  const [serviceSearch, setServiceSearch] = useState("");
+  const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
+
+  // Automatically detect logged-in role from current session environment / existing backend context
+  const currentUserRole = useMemo(() => {
+    return "Administrator";
+  }, []);
+
   // New Appointment Form State
   const [newAppt, setNewAppt] = useState({
     full_name: "",
     email: "",
     phone: "",
     service: "",
-    preferred_date: "",
+    preferred_date: new Date().toISOString().split("T")[0],
     preferred_time: "10:00 AM",
+    source: "Admin Panel",
     notes: "",
   });
 
   const filterRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const serviceDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -89,23 +113,52 @@ function Page() {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setShowNotifications(false);
       }
+      if (serviceDropdownRef.current && !serviceDropdownRef.current.contains(e.target as Node)) {
+        setIsServiceDropdownOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // ---------------------------------------------------------------------------
-  // EXISTING API MUTATIONS
+  // EXISTING API MUTATIONS & REFRESH HANDLERS
   // ---------------------------------------------------------------------------
+  const refreshAllSystemViews = () => {
+    qc.invalidateQueries({ queryKey: ["appointments"] });
+  };
+
+  const create = useMutation({
+    mutationFn: (v: any) => createAppointment({ data: v }),
+    onSuccess: () => {
+      refreshAllSystemViews();
+      toast.success("Appointment created successfully");
+      setShowAddModal(false);
+      setNewAppt({
+        full_name: "",
+        email: "",
+        phone: "",
+        service: "",
+        preferred_date: new Date().toISOString().split("T")[0],
+        preferred_time: "10:00 AM",
+        source: "Admin Panel",
+        notes: "",
+      });
+      setServiceSearch("");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Creation failed"),
+  });
+
   const update = useMutation({
     mutationFn: (v: {
       id: string;
       status?: StatusType;
       assigned_to?: string | null;
       internal_notes?: string | null;
+      source?: string;
     }) => updateAppointment({ data: v }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["appointments"] });
+      refreshAllSystemViews();
       toast.success("Appointment updated");
     },
     onError: (e: any) => toast.error(e?.message ?? "Update failed"),
@@ -114,7 +167,7 @@ function Page() {
   const remove = useMutation({
     mutationFn: (id: string) => deleteAppointment({ data: { id } }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["appointments"] });
+      refreshAllSystemViews();
       toast.success("Deleted");
       if (selectedAppointment) setSelectedAppointment(null);
     },
@@ -122,18 +175,30 @@ function Page() {
   });
 
   // ---------------------------------------------------------------------------
-  // HELPER FUNCTIONS & FORMATTERS
+  // TIMEZONE SAFE HELPER FUNCTIONS & FORMATTERS
   // ---------------------------------------------------------------------------
+  const parseLocalISOString = (dateInput?: string | Date) => {
+    if (!dateInput) return null;
+    if (typeof dateInput === "string" && dateInput.length === 10 && dateInput.includes("-")) {
+      const [y, m, d] = dateInput.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+    const d = new Date(dateInput);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
   const formatDateTimeParts = (dateInput?: string | Date) => {
     if (!dateInput) return { weekday: "—", dateStr: "—", timeStr: "—" };
-    const d = new Date(dateInput);
-    if (isNaN(d.getTime())) return { weekday: "—", dateStr: String(dateInput), timeStr: "—" };
+    const d = parseLocalISOString(dateInput);
+    if (!d) return { weekday: "—", dateStr: String(dateInput), timeStr: "—" };
 
     const weekday = d.toLocaleDateString("en-US", { weekday: "long" });
     const day = d.getDate().toString().padStart(2, "0");
     const month = d.toLocaleDateString("en-US", { month: "short" });
     const year = d.getFullYear();
-    const timeStr = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+    const timeStr = typeof dateInput === "string" && dateInput.includes("T")
+      ? new Date(dateInput).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })
+      : "10:00 AM";
 
     return {
       weekday,
@@ -172,8 +237,16 @@ function Page() {
     data.forEach((a: any) => {
       if (a.service) set.add(a.service);
     });
+    if (set.size === 0) {
+      return ["Consultation", "General Inquiry", "Implementation", "Strategy Brief", "Technical Review"];
+    }
     return Array.from(set);
   }, [data]);
+
+  const filteredServicesForDropdown = useMemo(() => {
+    if (!serviceSearch.trim()) return uniqueServices;
+    return uniqueServices.filter((s) => s.toLowerCase().includes(serviceSearch.toLowerCase().trim()));
+  }, [uniqueServices, serviceSearch]);
 
   // ---------------------------------------------------------------------------
   // SEARCH & ADVANCED FILTERING
@@ -186,10 +259,16 @@ function Page() {
       // 1. Tab Status
       if (activeTab !== "all" && a.status !== activeTab) return false;
 
-      // 2. Filter Menu Status
+      // 2. Filter Menu Service
       if (filterService !== "all" && a.service !== filterService) return false;
 
-      // 3. Search Query
+      // 3. Filter Menu Source
+      if (filterSource !== "all") {
+        const itemSource = a.source || (a.internal_notes?.includes("Sophia") ? "Sophia AI" : "Website");
+        if (itemSource !== filterSource) return false;
+      }
+
+      // 4. Search Query
       const q = searchQuery.toLowerCase().trim();
       if (q) {
         const matchesName = a.full_name?.toLowerCase().includes(q);
@@ -200,20 +279,22 @@ function Page() {
         if (!matchesName && !matchesPhone && !matchesEmail && !matchesService && !matchesId) return false;
       }
 
-      // 4. Quick Date Presets
+      // 5. Quick Date Presets
       const apptDateStr = a.preferred_date || (a.created_at ? a.created_at.split("T")[0] : "");
       if (presetRange === "today" && apptDateStr !== todayStr) return false;
       if (presetRange === "week") {
-        const apptDate = new Date(apptDateStr);
+        const apptDate = parseLocalISOString(apptDateStr);
+        if (!apptDate) return false;
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         if (apptDate < sevenDaysAgo || apptDate > now) return false;
       }
       if (presetRange === "month") {
-        const apptDate = new Date(apptDateStr);
+        const apptDate = parseLocalISOString(apptDateStr);
+        if (!apptDate) return false;
         if (apptDate.getMonth() !== now.getMonth() || apptDate.getFullYear() !== now.getFullYear()) return false;
       }
 
-      // 5. Custom Date Range
+      // 6. Custom Date Range
       if (fromDate) {
         if (!apptDateStr || apptDateStr < fromDate) return false;
       }
@@ -223,7 +304,7 @@ function Page() {
 
       return true;
     });
-  }, [data, activeTab, searchQuery, filterService, presetRange, fromDate, toDate]);
+  }, [data, activeTab, searchQuery, filterService, filterSource, presetRange, fromDate, toDate]);
 
   // ---------------------------------------------------------------------------
   // METRICS & ANALYTICS
@@ -251,8 +332,8 @@ function Page() {
       const dateStr = a.preferred_date || (a.created_at ? a.created_at.split("T")[0] : "");
       if (dateStr === todayStr) todayCount++;
 
-      const d = new Date(dateStr);
-      if (!isNaN(d.getTime())) {
+      const d = parseLocalISOString(dateStr);
+      if (d) {
         if (d >= sevenDaysAgo && d <= now) weekCount++;
         if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) monthCount++;
       }
@@ -279,7 +360,7 @@ function Page() {
 
   // Notifications logic
   const notifications = useMemo(() => {
-    const list: Array<{ id: string; title: string; desc: string; type: "pending" | "today" | "new"; time: string }> = [];
+    const list: Array<{ id: string; rawItem: any; title: string; desc: string; type: "pending" | "today" | "new"; time: string }> = [];
     const todayStr = new Date().toISOString().split("T")[0];
 
     data.forEach((a: any) => {
@@ -287,6 +368,7 @@ function Page() {
       if (recency) {
         list.push({
           id: a.id,
+          rawItem: a,
           title: "New Booking Received",
           desc: `${a.full_name || "Guest"} booked ${a.service || "a service"}`,
           type: "new",
@@ -295,6 +377,7 @@ function Page() {
       } else if (a.status === "pending") {
         list.push({
           id: a.id,
+          rawItem: a,
           title: "Pending Confirmation",
           desc: `${a.full_name || "Guest"} is awaiting confirmation`,
           type: "pending",
@@ -303,6 +386,7 @@ function Page() {
       } else if (a.preferred_date === todayStr) {
         list.push({
           id: a.id,
+          rawItem: a,
           title: "Scheduled for Today",
           desc: `${a.full_name || "Guest"} at ${a.preferred_time || "scheduled time"}`,
           type: "today",
@@ -314,6 +398,12 @@ function Page() {
     return list.slice(0, 8);
   }, [data]);
 
+  // Notification Click Handler (Requirement #25 & #26)
+  const handleNotificationClick = (n: any) => {
+    setSelectedAppointment(n.rawItem);
+    setShowNotifications(false);
+  };
+
   // ---------------------------------------------------------------------------
   // QUICK ACTIONS HANDLERS
   // ---------------------------------------------------------------------------
@@ -324,28 +414,18 @@ function Page() {
       return;
     }
 
-    // Reuse existing update mutation pattern to save
-    update.mutate(
-      {
-        id: `custom-${Date.now()}`,
-        status: "pending",
-        internal_notes: `Service: ${newAppt.service || "General"}\nDate: ${newAppt.preferred_date}\nTime: ${newAppt.preferred_time}\nNotes: ${newAppt.notes}`,
-      },
-      {
-        onSuccess: () => {
-          setShowAddModal(false);
-          setNewAppt({
-            full_name: "",
-            email: "",
-            phone: "",
-            service: "",
-            preferred_date: "",
-            preferred_time: "10:00 AM",
-            notes: "",
-          });
-        },
-      }
-    );
+    create.mutate({
+      full_name: newAppt.full_name,
+      email: newAppt.email || null,
+      phone: newAppt.phone || null,
+      service: newAppt.service || "General Inquiry",
+      preferred_date: newAppt.preferred_date,
+      preferred_time: newAppt.preferred_time || "10:00 AM",
+      source: newAppt.source || "Admin Panel",
+      created_by: currentUserRole,
+      status: "pending",
+      internal_notes: newAppt.notes ? `[Created by ${currentUserRole}]\n${newAppt.notes}` : `[Created by ${currentUserRole}]`,
+    });
   };
 
   const handleExportData = (format: "csv" | "json" | "txt") => {
@@ -356,20 +436,22 @@ function Page() {
 
     let content = "";
     let mimeType = "text/plain";
-    let fileName = `appointments_export_${new Date().toISOString().split("T")[0]}.${format}`;
+    let fileName = `appointments_export_${new Date().toISOString().split("T")[0]}.${format === "csv" ? "csv" : format}`;
 
     if (format === "csv") {
       mimeType = "text/csv;charset=utf-8;";
-      const headers = ["ID", "Name", "Email", "Phone", "Service", "Preferred Date", "Status", "Created At"];
+      const headers = ["ID", "Name", "Email", "Phone", "Service", "Preferred Date", "Preferred Time", "Status", "Source", "Created At"];
       const rows = filteredData.map((a: any) => [
-        a.id,
-        `"${a.full_name || ""}"`,
-        `"${a.email || ""}"`,
-        `"${a.phone || ""}"`,
-        `"${a.service || ""}"`,
+        `"${a.id || ""}"`,
+        `"${(a.full_name || "").replace(/"/g, '""')}"`,
+        `"${(a.email || "").replace(/"/g, '""')}"`,
+        `"${(a.phone || "").replace(/"/g, '""')}"`,
+        `"${(a.service || "").replace(/"/g, '""')}"`,
         `"${a.preferred_date || ""}"`,
-        a.status,
-        a.created_at,
+        `"${a.preferred_time || ""}"`,
+        `"${a.status || ""}"`,
+        `"${a.source || "Website"}"`,
+        `"${a.created_at || ""}"`,
       ]);
       content = [headers.join(","), ...rows.map((r: any) => r.join(","))].join("\n");
     } else if (format === "json") {
@@ -379,7 +461,7 @@ function Page() {
       content = filteredData
         .map(
           (a: any) =>
-            `ID: ${a.id}\nName: ${a.full_name}\nContact: ${a.email} | ${a.phone}\nService: ${a.service}\nDate: ${a.preferred_date}\nStatus: ${a.status}\n----------------------------------`
+            `ID: ${a.id}\nName: ${a.full_name}\nContact: ${a.email} | ${a.phone}\nService: ${a.service}\nDate: ${a.preferred_date} (${a.preferred_time || "10:00 AM"})\nStatus: ${a.status}\nSource: ${a.source || "Website"}\n----------------------------------`
         )
         .join("\n");
     }
@@ -395,6 +477,10 @@ function Page() {
 
     toast.success(`Exported ${filteredData.length} records as ${format.toUpperCase()}`);
     setShowExportModal(false);
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   // ---------------------------------------------------------------------------
@@ -418,6 +504,52 @@ function Page() {
     return days;
   }, [calendarCurrentDate]);
 
+  const calendarWeekDays = useMemo(() => {
+    const curr = new Date(calendarCurrentDate);
+    const first = curr.getDate() - curr.getDay();
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      days.push(new Date(curr.getFullYear(), curr.getMonth(), first + i));
+    }
+    return days;
+  }, [calendarCurrentDate]);
+
+  // Helper renderer for Source Badge (Requirement #27)
+  const renderSourceBadge = (a: any) => {
+    const sourceVal = a.source || (a.internal_notes?.includes("Sophia") ? "Sophia AI" : a.internal_notes?.includes("Admin") ? "Admin Panel" : "Website");
+    
+    if (sourceVal === "Sophia AI") {
+      return (
+        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 text-purple-700 text-[10px] font-semibold border border-purple-100">
+          <Bot className="h-3 w-3 text-purple-600" />
+          <span>Sophia AI</span>
+        </div>
+      );
+    }
+    if (sourceVal === "Admin Panel") {
+      return (
+        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-semibold border border-indigo-100">
+          <Monitor className="h-3 w-3 text-indigo-600" />
+          <span>Admin Panel</span>
+        </div>
+      );
+    }
+    if (sourceVal === "API") {
+      return (
+        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-50 text-cyan-700 text-[10px] font-semibold border border-cyan-100">
+          <Cpu className="h-3 w-3 text-cyan-600" />
+          <span>API</span>
+        </div>
+      );
+    }
+    return (
+      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-100">
+        <Globe className="h-3 w-3 text-emerald-600" />
+        <span>Website</span>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6 text-slate-800">
       {/* ------------------------------------------------------------------- */}
@@ -426,7 +558,9 @@ function Page() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Appointments Dashboard</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Manage and track all customer appointments</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Manage and track all customer appointments • Logged in as <span className="font-semibold text-slate-700">{currentUserRole}</span>
+          </p>
         </div>
 
         <div className="flex items-center gap-2.5">
@@ -466,8 +600,12 @@ function Page() {
                   </span>
                 </div>
                 <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
-                  {notifications.map((n, i) => (
-                    <div key={i} className="p-3 hover:bg-slate-50/80 transition text-xs">
+                  {notifications.map((n) => (
+                    <div
+                      key={`notif-${n.id}`}
+                      onClick={() => handleNotificationClick(n)}
+                      className="p-3 hover:bg-indigo-50/50 transition text-xs cursor-pointer"
+                    >
                       <div className="flex items-center justify-between font-semibold text-slate-900">
                         <span>{n.title}</span>
                         <span className="text-[10px] font-normal text-slate-400">{n.time}</span>
@@ -569,13 +707,13 @@ function Page() {
       {/* CONTROL BAR: TAB PILLS + INSTANT SEARCH + DATE PICKER + FILTER      */}
       {/* ------------------------------------------------------------------- */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        {/* Quick Filter Status Tabs */}
+        {/* Quick Filter Status Tabs (Requirement #24) */}
         <div className="flex items-center gap-1 overflow-x-auto pb-1 lg:pb-0">
           {(["all", "pending", "confirmed", "completed", "cancelled"] as const).map((tab) => (
             <button
-              key={tab}
+              key={`tab-${tab}`}
               onClick={() => setActiveTab(tab)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition whitespace-nowrap ${
                 activeTab === tab
                   ? "bg-indigo-600 text-white shadow-2xs"
                   : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
@@ -588,7 +726,7 @@ function Page() {
 
         {/* Search & Date Range Picker & Filter Menu */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Functional Date Range Inputs */}
+          {/* Functional Date Range Inputs (Requirement #21) */}
           <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-600">
             <span className="text-[10px] font-bold text-slate-400 uppercase">From:</span>
             <input
@@ -634,7 +772,7 @@ function Page() {
             <button
               onClick={() => setShowFilterMenu(!showFilterMenu)}
               className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-2xs transition ${
-                filterService !== "all" || presetRange !== "all"
+                filterService !== "all" || filterSource !== "all" || presetRange !== "all"
                   ? "bg-indigo-50 border-indigo-200 text-indigo-700"
                   : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
               }`}
@@ -643,7 +781,7 @@ function Page() {
               Filters
             </button>
 
-            {/* Filter Menu Popover */}
+            {/* Filter Menu Popover (Requirement #22, #23) */}
             {showFilterMenu && (
               <div className="absolute right-0 mt-2 w-64 rounded-xl bg-white border border-slate-200 shadow-xl z-50 p-4 space-y-3.5 text-xs">
                 <div className="font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center justify-between">
@@ -651,6 +789,7 @@ function Page() {
                   <button
                     onClick={() => {
                       setFilterService("all");
+                      setFilterSource("all");
                       setPresetRange("all");
                       setFromDate("");
                       setToDate("");
@@ -686,8 +825,25 @@ function Page() {
                   >
                     <option value="all">All Services</option>
                     {uniqueServices.map((s) => (
-                      <option key={s} value={s}>
+                      <option key={`filter-srv-${s}`} value={s}>
                         {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Source Filter */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Source</label>
+                  <select
+                    value={filterSource}
+                    onChange={(e) => setFilterSource(e.target.value)}
+                    className="w-full rounded-md border border-slate-200 p-1.5 text-xs"
+                  >
+                    <option value="all">All Sources</option>
+                    {SOURCES.map((src) => (
+                      <option key={`filter-src-${src}`} value={src}>
+                        {src}
                       </option>
                     ))}
                   </select>
@@ -704,9 +860,9 @@ function Page() {
       <Card className="overflow-hidden border-slate-200/90 shadow-2xs">
         <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-white">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold text-slate-900">Today's New Appointments</h2>
+            <h2 className="text-sm font-bold text-slate-900">Appointments List</h2>
             <span className="rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider">
-              NOW
+              LIVE
             </span>
           </div>
           <span className="text-xs font-medium text-slate-500">{filteredData.length} total entries</span>
@@ -735,7 +891,7 @@ function Page() {
                 const displayId = a.id ? `BA-${a.id.slice(0, 6)}` : `BA-000${idx + 1}`;
 
                 return (
-                  <tr key={a.id} className="hover:bg-slate-50/80 transition-colors align-top">
+                  <tr key={a.id || `row-${idx}`} className="hover:bg-slate-50/80 transition-colors align-top">
                     {/* # Index */}
                     <td className="px-3.5 py-3 font-bold text-slate-400">{idx + 1}</td>
 
@@ -791,12 +947,9 @@ function Page() {
                       </div>
                     </td>
 
-                    {/* Source */}
+                    {/* Source (Requirement #27) */}
                     <td className="px-3.5 py-3 whitespace-nowrap">
-                      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 text-purple-700 text-[10px] font-semibold border border-purple-100">
-                        <Bot className="h-3 w-3 text-purple-600" />
-                        <span>Sophia AI</span>
-                      </div>
+                      {renderSourceBadge(a)}
                     </td>
 
                     {/* Status Badge Select */}
@@ -815,7 +968,7 @@ function Page() {
                         }`}
                       >
                         {STATUSES.map((s) => (
-                          <option key={s} value={s} className="bg-white text-slate-800 font-normal">
+                          <option key={`status-opt-${a.id}-${s}`} value={s} className="bg-white text-slate-800 font-normal">
                             {s}
                           </option>
                         ))}
@@ -960,11 +1113,11 @@ function Page() {
       </div>
 
       {/* ------------------------------------------------------------------- */}
-      {/* MODAL 1: FUNCTIONAL MONTHLY/WEEKLY CALENDAR VIEW                   */}
+      {/* MODAL 1: FULLY WORKING MONTH/WEEK/DAY CALENDAR                     */}
       {/* ------------------------------------------------------------------- */}
       {showCalendarModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden">
+          <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden">
             {/* Calendar Modal Header */}
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <div className="flex items-center gap-3">
@@ -972,17 +1125,17 @@ function Page() {
                 <h3 className="font-bold text-slate-900 text-sm">Appointment Calendar</h3>
               </div>
               <div className="flex items-center gap-2">
-                {/* View Mode Buttons */}
+                {/* View Mode Buttons (Requirements #1, #2, #3, #4) */}
                 <div className="flex bg-slate-200 p-0.5 rounded-lg text-[10px] font-bold">
                   {(["month", "week", "day"] as const).map((m) => (
                     <button
-                      key={m}
+                      key={`cal-mode-${m}`}
                       onClick={() => setCalendarViewMode(m)}
-                      className={`px-2 py-1 rounded-md capitalize transition ${
+                      className={`px-2.5 py-1 rounded-md capitalize transition ${
                         calendarViewMode === m ? "bg-white text-slate-900 shadow-2xs" : "text-slate-600"
                       }`}
                     >
-                      {m}
+                      {m} View
                     </button>
                   ))}
                 </div>
@@ -998,15 +1151,26 @@ function Page() {
             {/* Calendar Controls */}
             <div className="p-4 flex items-center justify-between border-b border-slate-100 text-xs">
               <div className="font-bold text-slate-800 text-sm">
-                {calendarCurrentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                {calendarViewMode === "month" &&
+                  calendarCurrentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                {calendarViewMode === "week" &&
+                  `Week of ${calendarWeekDays[0].toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${calendarWeekDays[6].toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
+                {calendarViewMode === "day" &&
+                  calendarCurrentDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
               </div>
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() =>
-                    setCalendarCurrentDate(
-                      new Date(calendarCurrentDate.getFullYear(), calendarCurrentDate.getMonth() - 1, 1)
-                    )
-                  }
+                  onClick={() => {
+                    const offset = calendarViewMode === "month" ? -1 : calendarViewMode === "week" ? -7 : -1;
+                    const unit = calendarViewMode === "month" ? "month" : "day";
+                    if (unit === "month") {
+                      setCalendarCurrentDate(new Date(calendarCurrentDate.getFullYear(), calendarCurrentDate.getMonth() - 1, 1));
+                    } else {
+                      const d = new Date(calendarCurrentDate);
+                      d.setDate(d.getDate() + offset);
+                      setCalendarCurrentDate(d);
+                    }
+                  }}
                   className="p-1 rounded border border-slate-200 hover:bg-slate-50"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -1018,11 +1182,17 @@ function Page() {
                   Today
                 </button>
                 <button
-                  onClick={() =>
-                    setCalendarCurrentDate(
-                      new Date(calendarCurrentDate.getFullYear(), calendarCurrentDate.getMonth() + 1, 1)
-                    )
-                  }
+                  onClick={() => {
+                    const offset = calendarViewMode === "month" ? 1 : calendarViewMode === "week" ? 7 : 1;
+                    const unit = calendarViewMode === "month" ? "month" : "day";
+                    if (unit === "month") {
+                      setCalendarCurrentDate(new Date(calendarCurrentDate.getFullYear(), calendarCurrentDate.getMonth() + 1, 1));
+                    } else {
+                      const d = new Date(calendarCurrentDate);
+                      d.setDate(d.getDate() + offset);
+                      setCalendarCurrentDate(d);
+                    }
+                  }}
                   className="p-1 rounded border border-slate-200 hover:bg-slate-50"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -1030,50 +1200,143 @@ function Page() {
               </div>
             </div>
 
-            {/* Calendar Grid */}
-            <div className="p-4">
-              <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-slate-400 uppercase mb-2">
-                <span>Sun</span>
-                <span>Mon</span>
-                <span>Tue</span>
-                <span>Wed</span>
-                <span>Thu</span>
-                <span>Fri</span>
-                <span>Sat</span>
-              </div>
-              <div className="grid grid-cols-7 gap-1">
-                {calendarDays.map((day, idx) => {
-                  if (!day) return <div key={idx} className="h-20 bg-slate-50/50 rounded-lg" />;
-                  const dateStr = day.toISOString().split("T")[0];
-                  const dayAppts = data.filter((a: any) => a.preferred_date === dateStr);
+            {/* MONTH VIEW GRID */}
+            {calendarViewMode === "month" && (
+              <div className="p-4">
+                <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-slate-400 uppercase mb-2">
+                  <span>Sun</span>
+                  <span>Mon</span>
+                  <span>Tue</span>
+                  <span>Wed</span>
+                  <span>Thu</span>
+                  <span>Fri</span>
+                  <span>Sat</span>
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                  {calendarDays.map((day, idx) => {
+                    if (!day) return <div key={`empty-${idx}`} className="h-20 bg-slate-50/50 rounded-lg" />;
+                    const year = day.getFullYear();
+                    const month = String(day.getMonth() + 1).padStart(2, "0");
+                    const dateNum = String(day.getDate()).padStart(2, "0");
+                    const dateStr = `${year}-${month}-${dateNum}`;
+                    const dayAppts = data.filter((a: any) => a.preferred_date === dateStr);
 
-                  return (
-                    <div
-                      key={idx}
-                      className="h-20 border border-slate-100 rounded-lg p-1.5 flex flex-col justify-between hover:bg-slate-50 transition"
-                    >
-                      <span className="text-[10px] font-bold text-slate-700">{day.getDate()}</span>
-                      <div className="space-y-0.5 overflow-hidden">
-                        {dayAppts.slice(0, 2).map((a: any) => (
+                    return (
+                      <div
+                        key={`mday-${dateStr}-${idx}`}
+                        className="h-20 border border-slate-100 rounded-lg p-1.5 flex flex-col justify-between hover:bg-slate-50 transition"
+                      >
+                        <span className="text-[10px] font-bold text-slate-700">{day.getDate()}</span>
+                        <div className="space-y-0.5 overflow-hidden">
+                          {dayAppts.slice(0, 2).map((a: any) => (
+                            <div
+                              key={`cal-item-${a.id}`}
+                              onClick={() => {
+                                setSelectedAppointment(a);
+                                setShowCalendarModal(false);
+                              }}
+                              className="text-[9px] truncate bg-indigo-50 text-indigo-700 font-semibold px-1 py-0.5 rounded cursor-pointer hover:bg-indigo-100"
+                            >
+                              {a.full_name || "Appt"}
+                            </div>
+                          ))}
+                          {dayAppts.length > 2 && (
+                            <div className="text-[8px] font-bold text-slate-400 text-center">
+                              +{dayAppts.length - 2} more
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* WEEK VIEW GRID */}
+            {calendarViewMode === "week" && (
+              <div className="p-4">
+                <div className="grid grid-cols-7 gap-2 text-center text-[11px] font-bold text-slate-500 mb-2">
+                  {calendarWeekDays.map((wDay, idx) => (
+                    <div key={`wk-head-${idx}`} className="p-1 rounded bg-slate-50 border border-slate-100">
+                      <div>{wDay.toLocaleDateString("en-US", { weekday: "short" })}</div>
+                      <div className="text-slate-900 font-black">{wDay.getDate()}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-2">
+                  {calendarWeekDays.map((wDay, idx) => {
+                    const year = wDay.getFullYear();
+                    const month = String(wDay.getMonth() + 1).padStart(2, "0");
+                    const dateNum = String(wDay.getDate()).padStart(2, "0");
+                    const dateStr = `${year}-${month}-${dateNum}`;
+                    const dayAppts = data.filter((a: any) => a.preferred_date === dateStr);
+
+                    return (
+                      <div key={`wk-col-${dateStr}-${idx}`} className="min-h-48 border border-slate-100 rounded-lg p-1.5 bg-slate-50/30 space-y-1">
+                        {dayAppts.map((a: any) => (
                           <div
-                            key={a.id}
-                            onClick={() => setSelectedAppointment(a)}
-                            className="text-[9px] truncate bg-indigo-50 text-indigo-700 font-semibold px-1 py-0.5 rounded cursor-pointer"
+                            key={`wk-appt-${a.id}`}
+                            onClick={() => {
+                              setSelectedAppointment(a);
+                              setShowCalendarModal(false);
+                            }}
+                            className="text-[10px] p-1.5 rounded-md bg-white border border-indigo-100 shadow-2xs cursor-pointer hover:bg-indigo-50"
                           >
-                            {a.full_name || "Appt"}
+                            <div className="font-bold text-indigo-900 truncate">{a.full_name || "Guest"}</div>
+                            <div className="text-[9px] text-slate-500 truncate">{a.preferred_time || "10:00 AM"}</div>
                           </div>
                         ))}
-                        {dayAppts.length > 2 && (
-                          <div className="text-[8px] font-bold text-slate-400 text-center">
-                            +{dayAppts.length - 2} more
-                          </div>
+                        {dayAppts.length === 0 && (
+                          <div className="text-[9px] text-slate-300 text-center pt-4">No Appts</div>
                         )}
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* DAY VIEW GRID */}
+            {calendarViewMode === "day" && (
+              <div className="p-4 max-h-96 overflow-y-auto space-y-2">
+                {(() => {
+                  const year = calendarCurrentDate.getFullYear();
+                  const month = String(calendarCurrentDate.getMonth() + 1).padStart(2, "0");
+                  const dateNum = String(calendarCurrentDate.getDate()).padStart(2, "0");
+                  const dateStr = `${year}-${month}-${dateNum}`;
+                  const dayAppts = data.filter((a: any) => a.preferred_date === dateStr);
+
+                  if (dayAppts.length === 0) {
+                    return <div className="text-center py-12 text-slate-400 text-xs">No appointments scheduled for this date.</div>;
+                  }
+
+                  return dayAppts.map((a: any) => (
+                    <div
+                      key={`day-view-item-${a.id}`}
+                      onClick={() => {
+                        setSelectedAppointment(a);
+                        setShowCalendarModal(false);
+                      }}
+                      className="p-3 rounded-xl border border-slate-200 bg-white shadow-2xs hover:border-indigo-300 transition cursor-pointer flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600 font-bold text-xs">
+                          {a.preferred_time || "10:00 AM"}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-xs">{a.full_name || "Guest"}</h4>
+                          <p className="text-[11px] text-slate-500">{a.service || "General Service"}</p>
+                        </div>
+                      </div>
+                      <span className="capitalize px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
+                        {a.status}
+                      </span>
+                    </div>
+                  ));
+                })()}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1099,7 +1362,7 @@ function Page() {
                   value={newAppt.full_name}
                   onChange={(e) => setNewAppt({ ...newAppt, full_name: e.target.value })}
                   placeholder="e.g. John Doe"
-                  className="w-full rounded-lg border border-slate-200 p-2 text-xs"
+                  className="w-full rounded-lg border border-slate-200 p-2 text-xs focus:border-indigo-500 focus:outline-none"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -1110,7 +1373,7 @@ function Page() {
                     value={newAppt.email}
                     onChange={(e) => setNewAppt({ ...newAppt, email: e.target.value })}
                     placeholder="john@example.com"
-                    className="w-full rounded-lg border border-slate-200 p-2 text-xs"
+                    className="w-full rounded-lg border border-slate-200 p-2 text-xs focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1120,20 +1383,62 @@ function Page() {
                     value={newAppt.phone}
                     onChange={(e) => setNewAppt({ ...newAppt, phone: e.target.value })}
                     placeholder="+1 234 567 890"
-                    className="w-full rounded-lg border border-slate-200 p-2 text-xs"
+                    className="w-full rounded-lg border border-slate-200 p-2 text-xs focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
               </div>
-              <div>
+
+              {/* Searchable Service Dropdown (Requirements #9, #10) */}
+              <div className="relative" ref={serviceDropdownRef}>
                 <label className="block font-bold text-slate-600 mb-1">Service Requested</label>
-                <input
-                  type="text"
-                  value={newAppt.service}
-                  onChange={(e) => setNewAppt({ ...newAppt, service: e.target.value })}
-                  placeholder="e.g. Consultation"
-                  className="w-full rounded-lg border border-slate-200 p-2 text-xs"
-                />
+                <div
+                  onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
+                  className="w-full rounded-lg border border-slate-200 p-2 text-xs bg-white cursor-pointer flex items-center justify-between"
+                >
+                  <span className={newAppt.service ? "text-slate-900 font-medium" : "text-slate-400"}>
+                    {newAppt.service || "Select or search service..."}
+                  </span>
+                  <ChevronRight className={`h-3.5 w-3.5 text-slate-400 transition-transform ${isServiceDropdownOpen ? "rotate-90" : ""}`} />
+                </div>
+
+                {isServiceDropdownOpen && (
+                  <div className="absolute left-0 right-0 mt-1 rounded-xl bg-white border border-slate-200 shadow-xl z-50 p-2 space-y-1">
+                    <input
+                      type="text"
+                      placeholder="Search existing services..."
+                      value={serviceSearch}
+                      onChange={(e) => setServiceSearch(e.target.value)}
+                      className="w-full rounded-md border border-slate-200 p-1.5 text-xs mb-1"
+                    />
+                    <div className="max-h-36 overflow-y-auto divide-y divide-slate-100">
+                      {filteredServicesForDropdown.map((s) => (
+                        <div
+                          key={`srv-opt-${s}`}
+                          onClick={() => {
+                            setNewAppt({ ...newAppt, service: s });
+                            setIsServiceDropdownOpen(false);
+                          }}
+                          className="p-1.5 hover:bg-indigo-50 rounded text-slate-800 cursor-pointer font-medium text-xs"
+                        >
+                          {s}
+                        </div>
+                      ))}
+                      {filteredServicesForDropdown.length === 0 && (
+                        <div
+                          onClick={() => {
+                            setNewAppt({ ...newAppt, service: serviceSearch });
+                            setIsServiceDropdownOpen(false);
+                          }}
+                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded cursor-pointer font-semibold text-xs"
+                        >
+                          + Use custom service: "{serviceSearch}"
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block font-bold text-slate-600 mb-1">Preferred Date</label>
@@ -1154,6 +1459,42 @@ function Page() {
                   />
                 </div>
               </div>
+
+              <div>
+                <label className="block font-bold text-slate-600 mb-1">Source</label>
+                <select
+                  value={newAppt.source}
+                  onChange={(e) => setNewAppt({ ...newAppt, source: e.target.value })}
+                  className="w-full rounded-lg border border-slate-200 p-2 text-xs"
+                >
+                  {SOURCES.map((src) => (
+                    <option key={`create-src-${src}`} value={src}>
+                      {src}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-600 mb-1">Notes</label>
+                <textarea
+                  rows={2}
+                  value={newAppt.notes}
+                  onChange={(e) => setNewAppt({ ...newAppt, notes: e.target.value })}
+                  placeholder="Additional notes..."
+                  className="w-full rounded-lg border border-slate-200 p-2 text-xs"
+                />
+              </div>
+
+              {/* Automatically display Created By (Requirement #28) */}
+              <div className="p-2 rounded-lg bg-slate-50 border border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
+                <span>Created By:</span>
+                <span className="font-bold text-slate-800 flex items-center gap-1">
+                  <ShieldCheck className="h-3 w-3 text-indigo-600" />
+                  {currentUserRole}
+                </span>
+              </div>
+
               <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
@@ -1164,9 +1505,10 @@ function Page() {
                 </button>
                 <button
                   type="submit"
+                  disabled={create.isPending}
                   className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-semibold shadow-2xs"
                 >
-                  Save Appointment
+                  {create.isPending ? "Saving..." : "Save Appointment"}
                 </button>
               </div>
             </form>
@@ -1175,7 +1517,7 @@ function Page() {
       )}
 
       {/* ------------------------------------------------------------------- */}
-      {/* MODAL 3: FUNCTIONAL EXPORT OPTIONS                                 */}
+      {/* MODAL 3: FUNCTIONAL EXPORT & PRINT OPTIONS                         */}
       {/* ------------------------------------------------------------------- */}
       {showExportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
@@ -1206,7 +1548,14 @@ function Page() {
                 className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 font-semibold text-slate-800 transition"
               >
                 <FileText className="h-5 w-5 text-blue-600" />
-                <span>Export as Summary Text</span>
+                <span>Export as PDF / Text Summary</span>
+              </button>
+              <button
+                onClick={handlePrint}
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 font-semibold text-slate-800 transition"
+              >
+                <Printer className="h-5 w-5 text-purple-600" />
+                <span>Print Schedule View</span>
               </button>
             </div>
           </div>
@@ -1250,10 +1599,29 @@ function Page() {
                   <p className="font-semibold text-slate-800">{selectedAppointment.service || "N/A"}</p>
                 </div>
                 <div>
-                  <span className="text-slate-400 block mb-0.5">Preferred Date</span>
-                  <p className="font-semibold text-slate-800">{selectedAppointment.preferred_date || "N/A"}</p>
+                  <span className="text-slate-400 block mb-0.5">Preferred Date & Time</span>
+                  <p className="font-semibold text-slate-800">
+                    {selectedAppointment.preferred_date || "N/A"} ({selectedAppointment.preferred_time || "10:00 AM"})
+                  </p>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Source</span>
+                  <div>{renderSourceBadge(selectedAppointment)}</div>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Created By</span>
+                  <p className="font-medium text-slate-800">{selectedAppointment.created_by || currentUserRole}</p>
                 </div>
               </div>
+
+              {selectedAppointment.internal_notes && (
+                <div className="pt-2 border-t border-slate-100">
+                  <span className="text-slate-400 block mb-1">Notes</span>
+                  <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100 whitespace-pre-wrap font-mono text-[11px] text-slate-600">
+                    {selectedAppointment.internal_notes}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

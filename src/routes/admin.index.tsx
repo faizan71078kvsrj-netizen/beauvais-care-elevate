@@ -13,12 +13,12 @@ import {
   Users,
   Clock,
   Briefcase,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
   Loader2,
-  ArrowUpRight,
-  ChevronDown
+  ChevronDown,
+  User,
+  Settings as EditIcon,
+  LogOut,
+  Camera
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -69,26 +69,31 @@ const DONUT_COLORS = {
 function AdminDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [userProfile, setUserProfile] = useState<{ fullName: string; role: string; email: string }>({
+  
+  // User Profile & Menu State
+  const [userProfile, setUserProfile] = useState<{ id: string; fullName: string; role: string; email: string; avatarUrl: string | null }>({
+    id: "",
     fullName: "User",
     role: "Staff",
     email: "",
+    avatarUrl: null
   });
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
+  // Live Statistics
   const [stats, setStats] = useState({
     totalAppointments: 0,
     todaysAppointmentsCount: 0,
+    pendingAppointments: 0,
+    completedAppointments: 0,
+    cancelledAppointments: 0,
     totalLeads: 0,
     conversionRate: 0,
   });
 
   const [weeklyData, setWeeklyData] = useState<Array<{ day: string; count: number }>>([]);
-  const [statusCounts, setStatusCounts] = useState<{ completed: number; pending: number; cancelled: number }>({
-    completed: 0,
-    pending: 0,
-    cancelled: 0,
-  });
-
   const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([]);
   const [recentLeads, setRecentLeads] = useState<any[]>([]);
   const [topServices, setTopServices] = useState<Array<{ name: string; count: number }>>([]);
@@ -101,25 +106,27 @@ function AdminDashboard() {
       try {
         setLoading(true);
 
-        // 1. Fetch User Info
+        // 1. Fetch Auth User & Profile
         const { data: authUser } = await supabase.auth.getUser();
         if (authUser?.user) {
           const { data: profile } = await supabase
             .from("profiles")
-            .select("full_name, role")
+            .select("id, full_name, role, avatar_url")
             .eq("id", authUser.user.id)
             .maybeSingle();
 
           if (isMounted) {
             setUserProfile({
+              id: authUser.user.id,
               fullName: profile?.full_name || authUser.user.user_metadata?.full_name || authUser.user.email?.split("@")[0] || "User",
               role: profile?.role || "Staff",
               email: authUser.user.email || "",
+              avatarUrl: profile?.avatar_url || null
             });
           }
         }
 
-        // 2. Fetch Live Appointments & Leads Counts
+        // 2. Fetch Live Appointments, Leads, Notifications & Services Data
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
         const todayEnd = new Date();
@@ -132,7 +139,8 @@ function AdminDashboard() {
           { data: allAppts },
           { data: upcomingApptsData },
           { data: recentLeadsData },
-          { data: servicesData }
+          { data: servicesData },
+          { data: notificationsData }
         ] = await Promise.all([
           supabase.from("appointments").select("*", { count: "exact", head: true }),
           supabase.from("appointments").select("*", { count: "exact", head: true }).gte("created_at", todayStart.toISOString()).lte("created_at", todayEnd.toISOString()),
@@ -140,15 +148,11 @@ function AdminDashboard() {
           supabase.from("appointments").select("id, status, created_at, service_type"),
           supabase.from("appointments").select("id, client_name, appointment_time, status, phone_number").gte("appointment_time", todayStart.toISOString()).order("appointment_time", { ascending: true }).limit(5),
           supabase.from("leads").select("id, name, email, phone, created_at").order("created_at", { ascending: false }).limit(5),
-          supabase.from("appointments").select("service_type")
+          supabase.from("appointments").select("service_type"),
+          supabase.from("notifications").select("id, title, message, created_at, read").order("created_at", { ascending: false }).limit(5)
         ]);
 
-        // Calculate Stats
-        const apptCount = totalAppts || 0;
-        const leadsCount = totalLeadsCount || 0;
-        const convRate = apptCount > 0 ? ((apptCount / (apptCount + leadsCount)) * 100).toFixed(1) : "0.0";
-
-        // Calculate Status Breakdown
+        // Calculate Detailed Status Counts
         let completed = 0;
         let pending = 0;
         let cancelled = 0;
@@ -172,6 +176,10 @@ function AdminDashboard() {
           });
         }
 
+        const apptCount = totalAppts || 0;
+        const leadsCount = totalLeadsCount || 0;
+        const convRate = apptCount > 0 ? ((completed / apptCount) * 100).toFixed(1) : "0.0";
+
         const chartWeekly = [
           { day: "Mon", count: daysMap["Mon"] },
           { day: "Tue", count: daysMap["Tue"] },
@@ -182,7 +190,7 @@ function AdminDashboard() {
           { day: "Sun", count: daysMap["Sun"] },
         ];
 
-        // Service aggregation
+        // Service booking aggregations
         const serviceCounts: Record<string, number> = {};
         if (servicesData) {
           servicesData.forEach((s: any) => {
@@ -195,7 +203,7 @@ function AdminDashboard() {
           .sort((a, b) => b.count - a.count)
           .slice(0, 5);
 
-        // Recent Activity Feed mock built from real database items
+        // Build Activity Feed from live DB actions
         const activities: any[] = [];
         if (upcomingApptsData && upcomingApptsData.length > 0) {
           upcomingApptsData.slice(0, 2).forEach((a: any) => {
@@ -213,7 +221,7 @@ function AdminDashboard() {
             activities.push({
               id: `lead-${l.id}`,
               type: "Lead Created",
-              details: `New lead added: ${l.name || "Prospect"}`,
+              details: `New lead created: ${l.name || "Prospect"}`,
               time: l.created_at ? new Date(l.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently",
               badgeColor: "bg-sky-50 text-sky-700 border-sky-200"
             });
@@ -224,22 +232,21 @@ function AdminDashboard() {
           setStats({
             totalAppointments: apptCount,
             todaysAppointmentsCount: todayAppts || 0,
+            pendingAppointments: pending,
+            completedAppointments: completed,
+            cancelledAppointments: cancelled,
             totalLeads: leadsCount,
             conversionRate: Number(convRate),
           });
-          setStatusCounts({ completed, pending, cancelled });
           setWeeklyData(chartWeekly);
           setUpcomingAppointments(upcomingApptsData || []);
           setRecentLeads(recentLeadsData || []);
-          setTopServices(sortedServices.length > 0 ? sortedServices : [
-            { name: "General Consultation", count: apptCount },
-            { name: "Follow Up", count: Math.floor(apptCount * 0.4) },
-            { name: "Home Visit", count: Math.floor(apptCount * 0.2) }
-          ]);
+          setTopServices(sortedServices);
           setRecentActivities(activities);
+          setNotifications(notificationsData || []);
         }
       } catch (err) {
-        console.error("Dashboard failed to load data:", err);
+        console.error("Dashboard failed to fetch live database records:", err);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -254,11 +261,11 @@ function AdminDashboard() {
 
   const donutData = useMemo(() => {
     return [
-      { name: "Completed", value: statusCounts.completed },
-      { name: "Pending", value: statusCounts.pending },
-      { name: "Cancelled", value: statusCounts.cancelled },
+      { name: "Completed", value: stats.completedAppointments },
+      { name: "Pending", value: stats.pendingAppointments },
+      { name: "Cancelled", value: stats.cancelledAppointments },
     ].filter(item => item.value > 0);
-  }, [statusCounts]);
+  }, [stats]);
 
   const currentDateFormatted = useMemo(() => {
     return new Date().toLocaleDateString("en-US", {
@@ -268,20 +275,56 @@ function AdminDashboard() {
     });
   }, []);
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/admin/login";
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !userProfile.id) return;
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${userProfile.id}/avatar.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { uppercase: false, overwrite: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      const avatarUrl = publicUrlData.publicUrl;
+
+      await supabase
+        .from('profiles')
+        .update({ avatar_url: avatarUrl })
+        .eq('id', userProfile.id);
+
+      setUserProfile((prev) => ({ ...prev, avatarUrl }));
+    } catch (error) {
+      console.error("Failed to upload avatar:", error);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen grid place-items-center bg-slate-50">
+      <div className="min-h-[70vh] grid place-items-center bg-transparent">
         <div className="flex items-center gap-3 text-slate-500 text-sm font-medium">
-          <Loader2 className="h-5 w-5 animate-spin text-sky-600" /> Loading Dashboard...
+          <Loader2 className="h-5 w-5 animate-spin text-sky-600" /> Syncing Dashboard Analytics...
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 p-4 md:p-8 space-y-6">
+    <div className="space-y-6 text-slate-800">
       {/* 1. Header Section */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200/60">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
           <p className="text-sm text-slate-500 mt-0.5">
@@ -295,7 +338,7 @@ function AdminDashboard() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search appointments, leads..."
               className="w-full pl-9 pr-12 py-2 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shadow-sm"
             />
             <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
@@ -309,27 +352,102 @@ function AdminDashboard() {
             <span>{currentDateFormatted}</span>
           </div>
 
-          {/* Notification Button */}
-          <button className="relative p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 shadow-sm transition">
-            <Bell className="h-4 w-4" />
-            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-rose-500" />
-          </button>
+          {/* Notifications Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setNotificationsOpen(!notificationsOpen);
+                setProfileDropdownOpen(false);
+              }}
+              className="relative p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 shadow-sm transition"
+            >
+              <Bell className="h-4 w-4" />
+              {notifications.some(n => !n.read) && (
+                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-rose-500" />
+              )}
+            </button>
 
-          {/* User Profile */}
-          <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-sky-400 to-emerald-400 text-white font-bold text-xs grid place-items-center shadow-sm">
-              {userProfile.fullName.charAt(0).toUpperCase()}
-            </div>
-            <div className="hidden lg:block text-left">
-              <div className="text-xs font-semibold text-slate-900 leading-tight">{userProfile.fullName}</div>
-              <div className="text-[10px] text-slate-500 capitalize">{userProfile.role}</div>
-            </div>
-            <ChevronDown className="h-3.5 w-3.5 text-slate-400 hidden lg:block" />
+            {notificationsOpen && (
+              <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-4 space-y-3">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <span className="text-xs font-bold text-slate-900">Notifications</span>
+                  <span className="text-[10px] text-sky-600 font-semibold">{notifications.length} Unread</span>
+                </div>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {notifications.length > 0 ? (
+                    notifications.map((n) => (
+                      <div key={n.id} className="p-2 bg-slate-50 rounded border text-xs space-y-0.5">
+                        <div className="font-semibold text-slate-800">{n.title || "Notification"}</div>
+                        <div className="text-[11px] text-slate-500">{n.message || "System update alert."}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-400 text-center py-4">No recent notifications.</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Interactive User Profile Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setProfileDropdownOpen(!profileDropdownOpen);
+                setNotificationsOpen(false);
+              }}
+              className="flex items-center gap-2.5 pl-2 border-l border-slate-200 focus:outline-none"
+            >
+              {userProfile.avatarUrl ? (
+                <img src={userProfile.avatarUrl} alt="Profile" className="h-8 w-8 rounded-full object-cover shadow-sm border border-slate-200" />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-sky-400 to-emerald-400 text-white font-bold text-xs grid place-items-center shadow-sm">
+                  {userProfile.fullName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="hidden lg:block text-left">
+                <div className="text-xs font-semibold text-slate-900 leading-tight">{userProfile.fullName}</div>
+                <div className="text-[10px] text-slate-500 capitalize">{userProfile.role}</div>
+              </div>
+              <ChevronDown className="h-3.5 w-3.5 text-slate-400 hidden lg:block" />
+            </button>
+
+            {profileDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-2 text-xs space-y-1">
+                <div className="px-4 py-2 border-b border-slate-100">
+                  <div className="font-bold text-slate-900">{userProfile.fullName}</div>
+                  <div className="text-[10px] text-slate-400">{userProfile.email}</div>
+                </div>
+
+                <label className="flex items-center gap-2 px-4 py-2 text-slate-700 hover:bg-slate-50 cursor-pointer">
+                  <Camera className="h-3.5 w-3.5 text-slate-500" />
+                  <span>Upload / Change Picture</span>
+                  <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+                </label>
+
+                <button onClick={() => navigate({ to: "/admin/users" })} className="w-full text-left flex items-center gap-2 px-4 py-2 text-slate-700 hover:bg-slate-50">
+                  <User className="h-3.5 w-3.5 text-slate-500" />
+                  <span>View Profile</span>
+                </button>
+
+                <button onClick={() => navigate({ to: "/admin/users" })} className="w-full text-left flex items-center gap-2 px-4 py-2 text-slate-700 hover:bg-slate-50">
+                  <EditIcon className="h-3.5 w-3.5 text-slate-500" />
+                  <span>Edit Profile</span>
+                </button>
+
+                <div className="border-t border-slate-100 my-1"></div>
+
+                <button onClick={handleSignOut} className="w-full text-left flex items-center gap-2 px-4 py-2 text-rose-600 hover:bg-rose-50 font-medium">
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-      {/* 2. Top Statistics Cards */}
+      {/* 2. Top Live Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Appointments */}
         <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-start justify-between">
@@ -338,7 +456,7 @@ function AdminDashboard() {
             <div className="text-2xl font-bold text-slate-900">{stats.totalAppointments}</div>
             <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium pt-1">
               <TrendingUp className="h-3 w-3" />
-              <span>+18.5% vs last month</span>
+              <span>Live DB synced</span>
             </div>
           </div>
           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
@@ -353,7 +471,7 @@ function AdminDashboard() {
             <div className="text-2xl font-bold text-slate-900">{stats.totalLeads}</div>
             <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium pt-1">
               <TrendingUp className="h-3 w-3" />
-              <span>+12.4% vs last month</span>
+              <span>Live DB synced</span>
             </div>
           </div>
           <div className="p-3 bg-sky-50 text-sky-600 rounded-xl">
@@ -367,8 +485,8 @@ function AdminDashboard() {
             <span className="text-xs font-medium text-slate-500">Today's Appointments</span>
             <div className="text-2xl font-bold text-slate-900">{stats.todaysAppointmentsCount}</div>
             <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium pt-1">
-              <TrendingUp className="h-3 w-3" />
-              <span>+6.7% vs yesterday</span>
+              <Clock className="h-3 w-3" />
+              <span>Scheduled today</span>
             </div>
           </div>
           <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
@@ -383,7 +501,7 @@ function AdminDashboard() {
             <div className="text-2xl font-bold text-slate-900">{stats.conversionRate}%</div>
             <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium pt-1">
               <TrendingUp className="h-3 w-3" />
-              <span>+9.3% vs last week</span>
+              <span>Completed Ratio</span>
             </div>
           </div>
           <div className="p-3 bg-teal-50 text-teal-600 rounded-xl">
@@ -392,17 +510,17 @@ function AdminDashboard() {
         </div>
       </div>
 
-      {/* 3. Analytics Section (Line & Donut Charts + Upcoming Appointments) */}
+      {/* 3. Analytics Section (Charts & Upcoming Appointments) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Appointments Weekly Line Chart */}
         <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">Appointments Overview</h3>
-              <p className="text-[11px] text-slate-400">Weekly activity summary</p>
+              <h3 className="text-sm font-semibold text-slate-900">Weekly Appointments</h3>
+              <p className="text-[11px] text-slate-400">Live booking distribution</p>
             </div>
             <span className="text-xs font-medium text-slate-500 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
-              This Week
+              Current Week
             </span>
           </div>
 
@@ -420,7 +538,7 @@ function AdminDashboard() {
           </div>
         </div>
 
-        {/* Status Donut Chart */}
+        {/* Appointment Status Donut Chart */}
         <div className="lg:col-span-4 bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-semibold text-slate-900">Appointments by Status</h3>
@@ -448,19 +566,19 @@ function AdminDashboard() {
             </div>
           </div>
 
-          {/* Status Indicators */}
+          {/* Status Breakdown Indicators */}
           <div className="flex items-center justify-around border-t border-slate-100 pt-3 text-xs">
             <div className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-              <span className="text-slate-600 font-medium">Completed ({statusCounts.completed})</span>
+              <span className="text-slate-600 font-medium">Completed ({stats.completedAppointments})</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
-              <span className="text-slate-600 font-medium">Pending ({statusCounts.pending})</span>
+              <span className="text-slate-600 font-medium">Pending ({stats.pendingAppointments})</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
-              <span className="text-slate-600 font-medium">Cancelled ({statusCounts.cancelled})</span>
+              <span className="text-slate-600 font-medium">Cancelled ({stats.cancelledAppointments})</span>
             </div>
           </div>
         </div>
@@ -501,15 +619,18 @@ function AdminDashboard() {
                 </div>
               ))
             ) : (
-              <div className="text-xs text-slate-400 text-center py-8">No appointments scheduled for today.</div>
+              <div className="text-xs text-slate-400 text-center py-12 flex flex-col items-center justify-center space-y-1">
+                <Calendar className="h-5 w-5 text-slate-300" />
+                <span>No appointments scheduled for today.</span>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* 5. Bottom Section: Recent Leads, Top Services & Quick Actions */}
+      {/* 5. Bottom Grid: Recent Leads, Top Services & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* 5. Recent Leads / Contacts */}
+        {/* Recent Leads / Contacts */}
         <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-slate-900">Recent Contacts / Leads</h3>
@@ -528,7 +649,7 @@ function AdminDashboard() {
                     </div>
                     <div>
                       <div className="text-xs font-semibold text-slate-900">{lead.name || "Lead"}</div>
-                      <div className="text-[11px] text-slate-400">{lead.email || lead.phone || "No contact info"}</div>
+                      <div className="text-[11px] text-slate-400">{lead.email || lead.phone || "No contact details"}</div>
                     </div>
                   </div>
                   <div className="text-right">
@@ -539,12 +660,12 @@ function AdminDashboard() {
                 </div>
               ))
             ) : (
-              <div className="text-xs text-slate-400 text-center py-8">No leads registered yet.</div>
+              <div className="text-xs text-slate-400 text-center py-8">No recent leads registered.</div>
             )}
           </div>
         </div>
 
-        {/* 6. Top Services */}
+        {/* Top Services */}
         <div className="lg:col-span-4 bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-slate-900">Top Services</h3>
@@ -552,23 +673,27 @@ function AdminDashboard() {
           </div>
 
           <div className="space-y-3">
-            {topServices.map((service, idx) => (
-              <div key={idx} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 bg-white rounded border border-slate-200 text-slate-600">
-                    <Briefcase className="h-3.5 w-3.5" />
+            {topServices.length > 0 ? (
+              topServices.map((service, idx) => (
+                <div key={idx} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 bg-white rounded border border-slate-200 text-slate-600">
+                      <Briefcase className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="text-xs font-semibold text-slate-800">{service.name}</span>
                   </div>
-                  <span className="text-xs font-semibold text-slate-800">{service.name}</span>
+                  <span className="text-xs font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
+                    {service.count}
+                  </span>
                 </div>
-                <span className="text-xs font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
-                  {service.count}
-                </span>
-              </div>
-            ))}
+              ))
+            ) : (
+              <div className="text-xs text-slate-400 text-center py-8">No service records available.</div>
+            )}
           </div>
         </div>
 
-        {/* 7. Quick Actions */}
+        {/* Quick Actions */}
         <div className="lg:col-span-3 bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <h3 className="text-sm font-semibold text-slate-900 mb-3">Quick Actions</h3>
 
@@ -620,7 +745,7 @@ function AdminDashboard() {
         </div>
       </div>
 
-      {/* 8. Recent Activity Log */}
+      {/* 6. Recent Activity Log */}
       <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm">
         <h3 className="text-sm font-semibold text-slate-900 mb-3">Activity Log</h3>
 
